@@ -66,4 +66,91 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::get('/{lead}/quotation',    [Api\LeadController::class, 'quotation']);
             Route::get('/{lead}/bill',         [Api\LeadController::class, 'bill']);
         });
+
+        // MODULE 3 — Vehicle Maintenance — routes update karo
+        Route::apiResource('vehicles', Api\VehicleController::class);
+        Route::prefix('vehicles')->group(function () {
+            Route::get('documents/expiring',         [Api\VehicleController::class, 'expiringDocuments']);
+            Route::prefix('{vehicle}')->group(function () {
+                Route::post('fuel',                  [Api\VehicleController::class, 'addFuel']);
+                Route::post('maintenance',           [Api\VehicleController::class, 'addMaintenance']);
+                Route::post('document',              [Api\VehicleController::class, 'addDocument']);
+                Route::post('spare-part',            [Api\VehicleController::class, 'addSparePart']);
+                Route::get('report',                 [Api\VehicleController::class, 'report']);
+                Route::get('history',                [Api\VehicleController::class, 'history']);
+                Route::get('gps',                    [Api\VehicleController::class, 'gpsLocation']);
+            });
+        });
+
+        // MODULE 4 — Staff Management
+        Route::apiResource('staff', Api\StaffController::class);
+        Route::prefix('staff')->group(function () {
+            Route::get('performance',                        [Api\StaffController::class, 'performance']);
+            Route::prefix('{staff}')->group(function () {
+                // Attendance
+                Route::post('attendance',                    [Api\StaffController::class, 'markAttendance']);
+                Route::get('attendance',                     [Api\StaffController::class, 'attendanceList']);
+
+                // DA
+                Route::post('da',                            [Api\StaffController::class, 'calculateDA']);
+                Route::get('da',                             [Api\StaffController::class, 'daList']);
+
+                // Advance
+                Route::post('advance',                       [Api\StaffController::class, 'giveAdvance']);
+                Route::get('advances',                       [Api\StaffController::class, 'advanceList']);
+
+                // Salary
+                Route::post('salary/generate',               [Api\StaffController::class, 'generateSalary']);
+                Route::get('salary',                         [Api\StaffController::class, 'salaryList']);
+                Route::post('salary/{salary}/pay',           [Api\StaffController::class, 'paySalary']);
+                Route::get('salary/{salary}/slip',           [Api\StaffController::class, 'salarySlip']);
+
+                // Documents
+                Route::post('document',                      [Api\StaffController::class, 'uploadDocument']);
+
+                // Trips
+                Route::get('trips',                          [Api\StaffController::class, 'tripHistory']);
+            });
+        });
+        // MODULE 5 — Corporate / Company Duty Management
+        Route::prefix('corporate')->group(function () {
+            Route::get('/',                                          [Api\CorporateController::class, 'index']);
+            Route::post('/',                                         [Api\CorporateController::class, 'store']);
+            Route::get('/{corporate}',                               [Api\CorporateController::class, 'show']);
+            Route::put('/{corporate}',                               [Api\CorporateController::class, 'update']);
+            Route::delete('/{corporate}',                            [Api\CorporateController::class, 'destroy']);
+
+            Route::prefix('/{corporate}')->group(function () {
+                // Duties
+                Route::get('duties',                                 [Api\CorporateController::class, 'duties']);
+                Route::post('duty',                                  [Api\CorporateController::class, 'addDuty']);
+                Route::patch('duty/{duty}',                          [Api\CorporateController::class, 'updateDuty']);
+
+                // Fines
+                Route::get('fines',                                  [Api\CorporateController::class, 'fines']);
+                Route::post('fine',                                  [Api\CorporateController::class, 'addFine']);
+                Route::patch('fine/{fine}/waive',                    [Api\CorporateController::class, 'waiveFine']);
+
+                // Invoice
+                Route::post('generate-invoice',                      [Api\CorporateController::class, 'generateInvoice']);
+                Route::get('invoice/{payment}',                      [Api\CorporateController::class, 'downloadInvoice']);
+
+                // Payments
+                Route::get('payments',                               [Api\CorporateController::class, 'payments']);
+                Route::post('payment/{payment}/pay',                 [Api\CorporateController::class, 'recordPayment']);
+
+                // Report
+                Route::get('report',                                 [Api\CorporateController::class, 'report']);
+            });
+        });
+
+        // MODULE 6 — Dashboard
+        Route::prefix('dashboard')->group(function () {
+            Route::get('summary',       [Api\DashboardController::class, 'summary']);
+            Route::get('charts',        [Api\DashboardController::class, 'charts']);
+            Route::get('pl-report',     [Api\DashboardController::class, 'plReport']);
+            Route::get('performance',   [Api\DashboardController::class, 'performance']);
+            Route::get('notifications', [Api\DashboardController::class, 'notifications']);
+            Route::post('clear-cache',  [Api\DashboardController::class, 'clearCache']);
+        });
     });

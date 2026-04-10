@@ -30,4 +30,8 @@ class Vehicle extends Model
     {
         return $q->where('is_available', true)->where('is_active', true);
     }
+    public function maintenanceLogs()
+    {
+        return $this->hasMany(VehicleMaintenanceLog::class);
+    }
 }
