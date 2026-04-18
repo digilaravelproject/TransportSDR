@@ -12,6 +12,18 @@ use App\Services\Dashboard\{
     NotificationService
 };
 
+use App\Services\Template\{
+    TemplateService,
+    InvoiceService,
+    LetterheadService,
+    QuotationService,
+    EInvoiceService
+};
+
+use App\Services\CashBook\{CashBookService, LedgerService, OnlinePaymentService, QrService};
+
+use App\Services\Inventory\{InventoryService, StockService, AlertService};
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -26,6 +38,30 @@ class AppServiceProvider extends ServiceProvider
                 $app->make(ProfitLossService::class),
                 $app->make(PerformanceService::class),
                 $app->make(NotificationService::class),
+            );
+        });
+        $this->app->bind(TemplateService::class, function ($app) {
+            return new TemplateService(
+                $app->make(InvoiceService::class),
+                $app->make(LetterheadService::class),
+                $app->make(QuotationService::class),
+                $app->make(EInvoiceService::class),
+            );
+        });
+
+        $this->app->bind(CashBookService::class, function ($app) {
+            $ledger = $app->make(LedgerService::class);
+            return new CashBookService(
+                $ledger,
+                new OnlinePaymentService($ledger),
+                $app->make(QrService::class),
+            );
+        });
+
+        $this->app->bind(InventoryService::class, function ($app) {
+            return new InventoryService(
+                $app->make(StockService::class),
+                $app->make(AlertService::class),
             );
         });
     }

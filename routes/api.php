@@ -153,4 +153,91 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::get('notifications', [Api\DashboardController::class, 'notifications']);
             Route::post('clear-cache',  [Api\DashboardController::class, 'clearCache']);
         });
+
+        // MODULE 7 — Templates
+        Route::prefix('templates')->group(function () {
+            Route::get('/',                                   [Api\TemplateController::class, 'index']);
+
+            // Invoice
+            Route::post('invoice/trip/{trip}',                [Api\TemplateController::class, 'generateTripInvoice']);
+
+            // Letterhead
+            Route::post('letterhead',                         [Api\TemplateController::class, 'generateLetterhead']);
+
+            // Quotation
+            Route::post('quotation/lead/{lead}',              [Api\TemplateController::class, 'generateLeadQuotation']);
+            Route::post('quotation/custom',                   [Api\TemplateController::class, 'generateCustomQuotation']);
+
+            // E-Invoice
+            Route::get('einvoice/payload/{trip}',             [Api\TemplateController::class, 'eInvoicePayload']);
+            Route::post('einvoice/upload/{trip}',             [Api\TemplateController::class, 'uploadEInvoice']);
+            Route::patch('einvoice/{log}/cancel',             [Api\TemplateController::class, 'cancelEInvoice']);
+
+            // Download any log file
+            Route::get('logs/{log}/download',                 [Api\TemplateController::class, 'download']);
+        });
+
+        // MODULE 8 — Cash Book Management
+        Route::prefix('cashbook')->group(function () {
+            // Balance
+            Route::get('balance',                                    [Api\CashBookController::class, 'balance']);
+
+            // Ledger
+            Route::get('ledger',                                     [Api\CashBookController::class, 'ledger']);
+
+
+
+            // Online payment tracker
+            Route::get('online-payments',                            [Api\CashBookController::class, 'onlinePayments']);
+            Route::post('online-payments',                           [Api\CashBookController::class, 'recordOnlinePayment']);
+            Route::patch('online-payments/{payment}/status',         [Api\CashBookController::class, 'updateOnlinePaymentStatus']);
+            Route::post('online-payments/{payment}/refund',          [Api\CashBookController::class, 'refundOnlinePayment']);
+
+            // QR generation & management
+            Route::get('qr',                                         [Api\CashBookController::class, 'listQr']);
+            Route::post('qr/generate',                               [Api\CashBookController::class, 'generateQr']);
+            Route::get('qr/{qr}',                                    [Api\CashBookController::class, 'showQr']);
+            Route::patch('qr/{qr}/deactivate',                       [Api\CashBookController::class, 'deactivateQr']);
+            Route::post('qr/{qr}/send-alert',                        [Api\CashBookController::class, 'sendQrAlert']);
+
+            // UPI deep link only
+            Route::get('upi-link',                                   [Api\CashBookController::class, 'generateUpiLink']);
+
+
+            // Cash book entries CRUD
+            Route::get('/',                                          [Api\CashBookController::class, 'index']);
+            Route::post('/',                                         [Api\CashBookController::class, 'store']);
+            Route::get('/{entry}',                                   [Api\CashBookController::class, 'show']);
+            Route::put('/{entry}',                                   [Api\CashBookController::class, 'update']);
+            Route::delete('/{entry}',                                [Api\CashBookController::class, 'destroy']);
+            Route::post('/{entry}/receipt',                          [Api\CashBookController::class, 'uploadReceipt']);
+        });
+        // MODULE 9 — Inventory Management
+        Route::prefix('inventory')->group(function () {
+            // Alerts & Reports (before resource routes)
+            Route::get('alerts/low-stock',                          [Api\InventoryController::class, 'lowStockAlerts']);
+            Route::get('valuation',                                 [Api\InventoryController::class, 'valuation']);
+
+            // Categories
+            Route::get('categories',                                [Api\InventoryController::class, 'categories']);
+            Route::post('categories',                               [Api\InventoryController::class, 'createCategory']);
+
+            // Transaction document upload
+            Route::post('transactions/{transaction}/document',      [Api\InventoryController::class, 'uploadDocument']);
+
+            // Item CRUD
+            Route::get('/',                                         [Api\InventoryController::class, 'index']);
+            Route::post('/',                                        [Api\InventoryController::class, 'store']);
+            Route::get('/{item}',                                   [Api\InventoryController::class, 'show']);
+            Route::put('/{item}',                                   [Api\InventoryController::class, 'update']);
+            Route::delete('/{item}',                                [Api\InventoryController::class, 'destroy']);
+
+            // Stock operations
+            Route::post('/{item}/stock-in',                         [Api\InventoryController::class, 'stockIn']);
+            Route::post('/{item}/stock-out',                        [Api\InventoryController::class, 'stockOut']);
+            Route::post('/{item}/adjust',                           [Api\InventoryController::class, 'adjust']);
+            Route::post('/{item}/return',                           [Api\InventoryController::class, 'returnStock']);
+            Route::post('/{item}/damage',                           [Api\InventoryController::class, 'markDamaged']);
+            Route::get('/{item}/history',                           [Api\InventoryController::class, 'history']);
+        });
     });
