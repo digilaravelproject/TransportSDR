@@ -662,4 +662,92 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
+    // ─────────────────────────────────────────────────
+    // SIGNUP — Agency/User Registration
+    // POST /api/auth/signup
+    // ─────────────────────────────────────────────────
+    public function signup(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'agency_name' => 'required|string|max:255',
+                'owner_name' => 'required|string|max:255',
+                'mobile_number' => 'required|regex:/^[0-9]{10}$/|unique:users,phone_number',
+                'email' => 'required|email|unique:users,email',
+                'password' => 'required|string|min:8|confirmed',
+                'password_confirmation' => 'required|string',
+            ], [
+                'agency_name.required' => 'Agency name is required.',
+                'agency_name.max' => 'Agency name must not exceed 255 characters.',
+                'owner_name.required' => 'Owner name is required.',
+                'owner_name.max' => 'Owner name must not exceed 255 characters.',
+                'mobile_number.required' => 'Mobile number is required.',
+                'mobile_number.regex' => 'Mobile number must be exactly 10 digits.',
+                'mobile_number.unique' => 'This mobile number is already registered.',
+                'email.required' => 'Email address is required.',
+                'email.email' => 'Please provide a valid email address.',
+                'email.unique' => 'This email address is already registered.',
+                'password.required' => 'Password is required.',
+                'password.min' => 'Password must be at least 8 characters.',
+                'password.confirmed' => 'Password and confirm password do not match.',
+                'password_confirmation.required' => 'Please confirm your password.',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => $e->errors(),
+            ], 422);
+        }
+
+        try {
+            return DB::transaction(function () use ($validated) {
+                // 1. Create Tenant (Agency)
+                $tenant = Tenant::create([
+                    'company_name' => $validated['agency_name'],
+                    'email'        => $validated['email'],
+                    'phone'        => $validated['mobile_number'],
+                    'is_active'    => true,
+                ]);
+
+                // 2. Create Admin User
+                $user = User::create([
+                    'tenant_id' => $tenant->id,
+                    'name'      => $validated['owner_name'],
+                    'email'     => $validated['email'],
+                    'phone_number'     => $validated['mobile_number'],
+                    'password'  => Hash::make($validated['password']),
+                    'role'      => 'admin',
+                    'is_active' => true,
+                ]);
+
+                // 3. Generate API Token
+                $token = $user->createToken('api-token')->plainTextToken;
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Signup successful! Welcome to your agency account.',
+                    'data'    => [
+                        'user' => [
+                            'id'           => $user->id,
+                            'name'         => $user->name,
+                            'email'        => $user->email,
+                            'phone_number' => $user->phone_number,
+                            'role'         => $user->role,
+                            'tenant_id'    => $tenant->id,
+                            'agency_name'  => $tenant->company_name,
+                        ],
+                        'token' => $token,
+                    ],
+                ], 201);
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Signup failed. Please try again.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

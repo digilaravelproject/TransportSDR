@@ -6,6 +6,7 @@ use App\Http\Controllers\SuperAdmin;
 
 // ── Public ─────────────────────────────────────────────────────
 // Route::post('/auth/login', [Api\AuthController::class, 'login']);
+Route::post('/auth/signup',          [Api\AuthController::class, 'signup']);
 Route::post('/auth/send-otp',        [Api\AuthController::class, 'sendLoginOtp']);
 Route::post('/auth/verify-login-otp', [Api\AuthController::class, 'verifyLoginOtp']);
 Route::post('/auth/resend-login-otp', [Api\AuthController::class, 'resendLoginOtp']);
