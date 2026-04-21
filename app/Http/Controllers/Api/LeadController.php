@@ -13,6 +13,7 @@ use App\Http\Resources\{LeadResource, TripResource};
 use App\Models\Lead;
 use App\Services\LeadService;
 use Illuminate\Http\Request;
+use Exception;
 
 class LeadController extends Controller
 {
@@ -26,34 +27,42 @@ class LeadController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        $leads = Lead::with(['customer', 'assignedTo', 'creator'])
-            ->when($request->status,  fn($q, $v) => $q->where('status', $v))
-            ->when($request->source,  fn($q, $v) => $q->where('source', $v))
-            ->when($request->from,    fn($q, $v) => $q->whereDate('trip_date', '>=', $v))
-            ->when($request->to,      fn($q, $v) => $q->whereDate('trip_date', '<=', $v))
-            ->when($request->assigned_to, fn($q, $v) => $q->where('assigned_to', $v))
-            ->when($request->followup_today, function ($q) {
-                return $q->whereDate('followup_date', today());
-            })
-            ->when($request->search, fn($q, $v) => $q->where(function ($q) use ($v) {
-                $q->where('lead_number',    'like', "%{$v}%")
-                    ->orWhere('customer_name',    'like', "%{$v}%")
-                    ->orWhere('customer_contact', 'like', "%{$v}%")
-                    ->orWhere('trip_route',       'like', "%{$v}%");
-            }))
-            ->latest()
-            ->paginate($request->per_page ?? 20)
-            ->withQueryString();
+        try {
+            $leads = Lead::with(['customer', 'assignedTo', 'creator'])
+                ->when($request->status,  fn($q, $v) => $q->where('status', $v))
+                ->when($request->source,  fn($q, $v) => $q->where('source', $v))
+                ->when($request->from,    fn($q, $v) => $q->whereDate('trip_date', '>=', $v))
+                ->when($request->to,      fn($q, $v) => $q->whereDate('trip_date', '<=', $v))
+                ->when($request->assigned_to, fn($q, $v) => $q->where('assigned_to', $v))
+                ->when($request->followup_today, function ($q) {
+                    return $q->whereDate('followup_date', today());
+                })
+                ->when($request->search, fn($q, $v) => $q->where(function ($q) use ($v) {
+                    $q->where('lead_number',    'like', "%{$v}%")
+                        ->orWhere('customer_name',    'like', "%{$v}%")
+                        ->orWhere('customer_contact', 'like', "%{$v}%")
+                        ->orWhere('trip_route',       'like', "%{$v}%");
+                }))
+                ->latest()
+                ->paginate($request->per_page ?? 20)
+                ->withQueryString();
 
-        return response()->json([
-            'success' => true,
-            'data'    => LeadResource::collection($leads),
-            'meta'    => [
-                'total'        => $leads->total(),
-                'current_page' => $leads->currentPage(),
-                'last_page'    => $leads->lastPage(),
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => LeadResource::collection($leads),
+                'meta'    => [
+                    'total'        => $leads->total(),
+                    'current_page' => $leads->currentPage(),
+                    'last_page'    => $leads->lastPage(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching leads.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -63,13 +72,21 @@ class LeadController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator']);
 
-        $lead = $this->service->store($request->validated());
+        try {
+            $lead = $this->service->store($request->validated());
 
-        return response()->json([
-            'success' => true,
-            'message' => "Lead {$lead->lead_number} created successfully.",
-            'data'    => new LeadResource($lead),
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => "Lead {$lead->lead_number} created successfully.",
+                'data'    => new LeadResource($lead),
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while creating the lead.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -79,12 +96,20 @@ class LeadController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        $lead->load(['customer', 'convertedTrip', 'assignedTo', 'creator']);
+        try {
+            $lead->load(['customer', 'convertedTrip', 'assignedTo', 'creator']);
 
-        return response()->json([
-            'success' => true,
-            'data'    => new LeadResource($lead),
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => new LeadResource($lead),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching the lead details.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -101,13 +126,21 @@ class LeadController extends Controller
             ], 422);
         }
 
-        $lead = $this->service->update($lead, $request->validated());
+        try {
+            $lead = $this->service->update($lead, $request->validated());
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Lead updated successfully.',
-            'data'    => new LeadResource($lead),
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Lead updated successfully.',
+                'data'    => new LeadResource($lead),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while updating the lead.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -124,12 +157,20 @@ class LeadController extends Controller
             ], 422);
         }
 
-        $lead->delete();
+        try {
+            $lead->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Lead deleted successfully.',
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Lead deleted successfully.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while deleting the lead.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -140,13 +181,21 @@ class LeadController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator']);
 
-        $lead = $this->service->updateStatus($lead, $request->validated());
+        try {
+            $lead = $this->service->updateStatus($lead, $request->validated());
 
-        return response()->json([
-            'success' => true,
-            'message' => "Lead status updated to: {$lead->status}.",
-            'data'    => new LeadResource($lead),
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => "Lead status updated to: {$lead->status}.",
+                'data'    => new LeadResource($lead),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while updating the lead status.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -157,16 +206,24 @@ class LeadController extends Controller
     {
         $this->checkRole(['superadmin', 'admin']);
 
-        $trip = $this->service->convertToTrip($lead, $request->validated());
+        try {
+            $trip = $this->service->convertToTrip($lead, $request->validated());
 
-        return response()->json([
-            'success' => true,
-            'message' => "Lead {$lead->lead_number} converted to Trip {$trip->trip_number} successfully.",
-            'data'    => [
-                'lead' => new LeadResource($lead->fresh()),
-                'trip' => new TripResource($trip),
-            ],
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => "Lead {$lead->lead_number} converted to Trip {$trip->trip_number} successfully.",
+                'data'    => [
+                    'lead' => new LeadResource($lead->fresh()),
+                    'trip' => new TripResource($trip),
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while converting the lead to a trip.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -177,26 +234,34 @@ class LeadController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator']);
 
-        $stats = [
-            'total'          => Lead::count(),
-            'new'            => Lead::where('status', 'new')->count(),
-            'contacted'      => Lead::where('status', 'contacted')->count(),
-            'followup'       => Lead::where('status', 'followup')->count(),
-            'quoted'         => Lead::where('status', 'quoted')->count(),
-            'confirmed'      => Lead::where('status', 'confirmed')->count(),
-            'converted'      => Lead::where('status', 'converted')->count(),
-            'lost'           => Lead::where('status', 'lost')->count(),
-            'cancelled'      => Lead::where('status', 'cancelled')->count(),
-            'followup_today' => Lead::whereDate('followup_date', today())->count(),
-            'by_source'      => Lead::selectRaw('source, count(*) as count')
-                ->groupBy('source')
-                ->get(),
-        ];
+        try {
+            $stats = [
+                'total'          => Lead::count(),
+                'new'            => Lead::where('status', 'new')->count(),
+                'contacted'      => Lead::where('status', 'contacted')->count(),
+                'followup'       => Lead::where('status', 'followup')->count(),
+                'quoted'         => Lead::where('status', 'quoted')->count(),
+                'confirmed'      => Lead::where('status', 'confirmed')->count(),
+                'converted'      => Lead::where('status', 'converted')->count(),
+                'lost'           => Lead::where('status', 'lost')->count(),
+                'cancelled'      => Lead::where('status', 'cancelled')->count(),
+                'followup_today' => Lead::whereDate('followup_date', today())->count(),
+                'by_source'      => Lead::selectRaw('source, count(*) as count')
+                    ->groupBy('source')
+                    ->get(),
+            ];
 
-        return response()->json([
-            'success' => true,
-            'data'    => $stats,
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => $stats,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching lead statistics.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     private function checkRole(array $roles): void

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Dashboard\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Exception;
 
 class DashboardController extends Controller
 {
@@ -19,10 +20,18 @@ class DashboardController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $this->dashboard->getSummary(),
-        ]);
+        try {
+            return response()->json([
+                'success' => true,
+                'data'    => $this->dashboard->getSummary(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching the dashboard summary.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -33,10 +42,18 @@ class DashboardController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $this->dashboard->getCharts(),
-        ]);
+        try {
+            return response()->json([
+                'success' => true,
+                'data'    => $this->dashboard->getCharts(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching dashboard charts.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -52,13 +69,21 @@ class DashboardController extends Controller
             'to'   => 'nullable|date|after_or_equal:from',
         ]);
 
-        $from = $request->from ?? now()->startOfMonth()->toDateString();
-        $to   = $request->to   ?? now()->toDateString();
+        try {
+            $from = $request->from ?? now()->startOfMonth()->toDateString();
+            $to   = $request->to   ?? now()->toDateString();
 
-        return response()->json([
-            'success' => true,
-            'data'    => $this->dashboard->getProfitLoss($from, $to),
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => $this->dashboard->getProfitLoss($from, $to),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while generating the P&L report.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -73,12 +98,20 @@ class DashboardController extends Controller
             'period' => 'nullable|in:today,week,month,year',
         ]);
 
-        $period = $request->period ?? 'month';
+        try {
+            $period = $request->period ?? 'month';
 
-        return response()->json([
-            'success' => true,
-            'data'    => $this->dashboard->getPerformance($period),
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => $this->dashboard->getPerformance($period),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching performance data.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -89,10 +122,18 @@ class DashboardController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $this->dashboard->getNotifications(),
-        ]);
+        try {
+            return response()->json([
+                'success' => true,
+                'data'    => $this->dashboard->getNotifications(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching notifications.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -103,30 +144,38 @@ class DashboardController extends Controller
     {
         $this->checkRole(['superadmin', 'admin']);
 
-        $tenantId = auth()->user()->tenant_id;
-        $patterns = [
-            "dashboard:kpis:{$tenantId}:*",
-            "dashboard:trip-status:{$tenantId}",
-            "dashboard:lead-funnel:{$tenantId}",
-            "dashboard:monthly-trip-revenue:{$tenantId}:*",
-            "dashboard:vehicle-performance:{$tenantId}",
-            "dashboard:revenue-source:{$tenantId}:*",
-            "dashboard:fuel-efficiency:{$tenantId}",
-            "dashboard:pl:{$tenantId}:*",
-            "dashboard:vehicle-pl:{$tenantId}:*",
-            "dashboard:pl-trend:{$tenantId}:*",
-            "dashboard:performance:{$tenantId}:*",
-            "dashboard:notifications:{$tenantId}:*",
-        ];
+        try {
+            $tenantId = auth()->user()->tenant_id;
+            $patterns = [
+                "dashboard:kpis:{$tenantId}:*",
+                "dashboard:trip-status:{$tenantId}",
+                "dashboard:lead-funnel:{$tenantId}",
+                "dashboard:monthly-trip-revenue:{$tenantId}:*",
+                "dashboard:vehicle-performance:{$tenantId}",
+                "dashboard:revenue-source:{$tenantId}:*",
+                "dashboard:fuel-efficiency:{$tenantId}",
+                "dashboard:pl:{$tenantId}:*",
+                "dashboard:vehicle-pl:{$tenantId}:*",
+                "dashboard:pl-trend:{$tenantId}:*",
+                "dashboard:performance:{$tenantId}:*",
+                "dashboard:notifications:{$tenantId}:*",
+            ];
 
-        foreach ($patterns as $key) {
-            Cache::forget($key);
+            foreach ($patterns as $key) {
+                Cache::forget($key);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Dashboard cache cleared successfully.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while clearing the dashboard cache.',
+                'error'   => $e->getMessage(),
+            ], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Dashboard cache cleared successfully.',
-        ]);
     }
 
     private function checkRole(array $roles): void

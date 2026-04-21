@@ -8,6 +8,7 @@ use App\Http\Resources\StaffResource;
 use App\Services\StaffService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Exception;
 
 class StaffController extends Controller
 {
@@ -20,28 +21,36 @@ class StaffController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        $staff = Staff::with(['user'])
-            ->when($request->staff_type,   fn($q, $v) => $q->where('staff_type', $v))
-            ->when($request->is_available, fn($q, $v) => $q->where('is_available', (bool)$v))
-            ->when($request->is_active,    fn($q, $v) => $q->where('is_active', (bool)$v))
-            ->when($request->search,       fn($q, $v) => $q->where(function ($q) use ($v) {
-                $q->where('name',  'like', "%{$v}%")
-                    ->orWhere('phone', 'like', "%{$v}%")
-                    ->orWhere('email', 'like', "%{$v}%");
-            }))
-            ->latest()
-            ->paginate($request->per_page ?? 20)
-            ->withQueryString();
+        try {
+            $staff = Staff::with(['user'])
+                ->when($request->staff_type,   fn($q, $v) => $q->where('staff_type', $v))
+                ->when($request->is_available, fn($q, $v) => $q->where('is_available', (bool)$v))
+                ->when($request->is_active,    fn($q, $v) => $q->where('is_active', (bool)$v))
+                ->when($request->search,       fn($q, $v) => $q->where(function ($q) use ($v) {
+                    $q->where('name',  'like', "%{$v}%")
+                        ->orWhere('phone', 'like', "%{$v}%")
+                        ->orWhere('email', 'like', "%{$v}%");
+                }))
+                ->latest()
+                ->paginate($request->per_page ?? 20)
+                ->withQueryString();
 
-        return response()->json([
-            'success' => true,
-            'data'    => StaffResource::collection($staff),
-            'meta'    => [
-                'total'        => $staff->total(),
-                'current_page' => $staff->currentPage(),
-                'last_page'    => $staff->lastPage(),
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => StaffResource::collection($staff),
+                'meta'    => [
+                    'total'        => $staff->total(),
+                    'current_page' => $staff->currentPage(),
+                    'last_page'    => $staff->lastPage(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching staff records.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -79,13 +88,21 @@ class StaffController extends Controller
             'staff_type.in'       => 'Staff type must be driver, helper or office.',
         ]);
 
-        $staff = $this->service->store($data);
+        try {
+            $staff = $this->service->store($data);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Staff member added successfully.',
-            'data'    => new StaffResource($staff),
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => 'Staff member added successfully.',
+                'data'    => new StaffResource($staff),
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while adding the staff member.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -95,27 +112,35 @@ class StaffController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        $staff->load(['user', 'documents']);
+        try {
+            $staff->load(['user', 'documents']);
 
-        $pendingAdvance = $staff->pendingAdvanceAmount();
-        $pendingDA      = StaffDaLog::where('staff_id', $staff->id)
-            ->where('status', 'pending')
-            ->sum('da_amount');
+            $pendingAdvance = $staff->pendingAdvanceAmount();
+            $pendingDA      = StaffDaLog::where('staff_id', $staff->id)
+                ->where('status', 'pending')
+                ->sum('da_amount');
 
-        $recentTrips = Trip::where(function ($q) use ($staff) {
-            $q->where('driver_id', $staff->id)
-                ->orWhere('helper_id', $staff->id);
-        })->latest()->take(5)->get(['id', 'trip_number', 'trip_date', 'trip_route', 'status']);
+            $recentTrips = Trip::where(function ($q) use ($staff) {
+                $q->where('driver_id', $staff->id)
+                    ->orWhere('helper_id', $staff->id);
+            })->latest()->take(5)->get(['id', 'trip_number', 'trip_date', 'trip_route', 'status']);
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'staff'           => new StaffResource($staff),
-                'pending_advance' => $pendingAdvance,
-                'pending_da'      => $pendingDA,
-                'recent_trips'    => $recentTrips,
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'staff'           => new StaffResource($staff),
+                    'pending_advance' => $pendingAdvance,
+                    'pending_da'      => $pendingDA,
+                    'recent_trips'    => $recentTrips,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching staff details.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -150,13 +175,21 @@ class StaffController extends Controller
             'notes'                  => 'nullable|string',
         ]);
 
-        $staff = $this->service->update($staff, $data);
+        try {
+            $staff = $this->service->update($staff, $data);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Staff updated successfully.',
-            'data'    => new StaffResource($staff),
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Staff updated successfully.',
+                'data'    => new StaffResource($staff),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while updating the staff member.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -173,12 +206,20 @@ class StaffController extends Controller
             ], 422);
         }
 
-        $staff->delete();
+        try {
+            $staff->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Staff deleted successfully.',
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Staff deleted successfully.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while deleting the staff member.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -201,15 +242,23 @@ class StaffController extends Controller
             'status.in'       => 'Invalid attendance status.',
         ]);
 
-        $attendance = $this->service->markAttendance($staff, array_merge($data, [
-            'staff_id' => $staff->id,
-        ]));
+        try {
+            $attendance = $this->service->markAttendance($staff, array_merge($data, [
+                'staff_id' => $staff->id,
+            ]));
 
-        return response()->json([
-            'success' => true,
-            'message' => "Attendance marked as {$attendance->status} for {$attendance->date->format('d-m-Y')}.",
-            'data'    => $attendance,
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => "Attendance marked as {$attendance->status} for {$attendance->date->format('d-m-Y')}.",
+                'data'    => $attendance,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while marking attendance.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -220,34 +269,42 @@ class StaffController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        $month = $request->month ?? now()->format('m');
-        $year  = $request->year  ?? now()->format('Y');
+        try {
+            $month = $request->month ?? now()->format('m');
+            $year  = $request->year  ?? now()->format('Y');
 
-        $attendance = StaffAttendance::where('staff_id', $staff->id)
-            ->whereMonth('date', $month)
-            ->whereYear('date', $year)
-            ->orderBy('date')
-            ->get();
+            $attendance = StaffAttendance::where('staff_id', $staff->id)
+                ->whereMonth('date', $month)
+                ->whereYear('date', $year)
+                ->orderBy('date')
+                ->get();
 
-        $summary = [
-            'total_days'   => $attendance->count(),
-            'present'      => $attendance->where('status', 'present')->count(),
-            'absent'       => $attendance->where('status', 'absent')->count(),
-            'half_day'     => $attendance->where('status', 'half_day')->count(),
-            'on_trip'      => $attendance->where('status', 'on_trip')->count(),
-            'leave'        => $attendance->where('status', 'leave')->count(),
-            'holiday'      => $attendance->where('status', 'holiday')->count(),
-        ];
+            $summary = [
+                'total_days'   => $attendance->count(),
+                'present'      => $attendance->where('status', 'present')->count(),
+                'absent'       => $attendance->where('status', 'absent')->count(),
+                'half_day'     => $attendance->where('status', 'half_day')->count(),
+                'on_trip'      => $attendance->where('status', 'on_trip')->count(),
+                'leave'        => $attendance->where('status', 'leave')->count(),
+                'holiday'      => $attendance->where('status', 'holiday')->count(),
+            ];
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'staff'      => ['id' => $staff->id, 'name' => $staff->name],
-                'period'     => ['month' => $month, 'year' => $year],
-                'summary'    => $summary,
-                'attendance' => $attendance,
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'staff'      => ['id' => $staff->id, 'name' => $staff->name],
+                    'period'     => ['month' => $month, 'year' => $year],
+                    'summary'    => $summary,
+                    'attendance' => $attendance,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching attendance list.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -267,28 +324,36 @@ class StaffController extends Controller
             'trip_id.exists'   => 'Trip not found.',
         ]);
 
-        $trip = Trip::findOrFail($data['trip_id']);
+        try {
+            $trip = Trip::findOrFail($data['trip_id']);
 
-        // Check staff was on this trip
-        if ($trip->driver_id !== $staff->id && $trip->helper_id !== $staff->id) {
+            // Check staff was on this trip
+            if ($trip->driver_id !== $staff->id && $trip->helper_id !== $staff->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This staff member was not assigned to this trip.',
+                ], 422);
+            }
+
+            $daLog = $this->service->calculateTripDA($staff, $trip);
+
+            // Update extra allowance if provided
+            if (isset($data['extra_allowance'])) {
+                $daLog->update(['extra_allowance' => $data['extra_allowance']]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "DA calculated: ₹{$daLog->da_amount} for {$trip->trip_number}.",
+                'data'    => $daLog->load('trip'),
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'This staff member was not assigned to this trip.',
-            ], 422);
+                'message' => 'An unexpected error occurred while calculating DA.',
+                'error'   => $e->getMessage(),
+            ], 500);
         }
-
-        $daLog = $this->service->calculateTripDA($staff, $trip);
-
-        // Update extra allowance if provided
-        if (isset($data['extra_allowance'])) {
-            $daLog->update(['extra_allowance' => $data['extra_allowance']]);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => "DA calculated: ₹{$daLog->da_amount} for {$trip->trip_number}.",
-            'data'    => $daLog->load('trip'),
-        ]);
     }
 
     // ─────────────────────────────────────────────────
@@ -299,24 +364,32 @@ class StaffController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
-        $daLogs = StaffDaLog::where('staff_id', $staff->id)
-            ->with('trip')
-            ->when($request->status, fn($q, $v) => $q->where('status', $v))
-            ->latest()
-            ->paginate(20);
+        try {
+            $daLogs = StaffDaLog::where('staff_id', $staff->id)
+                ->with('trip')
+                ->when($request->status, fn($q, $v) => $q->where('status', $v))
+                ->latest()
+                ->paginate(20);
 
-        $summary = [
-            'total_pending' => StaffDaLog::where('staff_id', $staff->id)->where('status', 'pending')->sum('da_amount'),
-            'total_paid'    => StaffDaLog::where('staff_id', $staff->id)->where('status', 'paid')->sum('da_amount'),
-        ];
+            $summary = [
+                'total_pending' => StaffDaLog::where('staff_id', $staff->id)->where('status', 'pending')->sum('da_amount'),
+                'total_paid'    => StaffDaLog::where('staff_id', $staff->id)->where('status', 'paid')->sum('da_amount'),
+            ];
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'summary' => $summary,
-                'logs'    => $daLogs,
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'summary' => $summary,
+                    'logs'    => $daLogs,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching DA list.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -340,15 +413,23 @@ class StaffController extends Controller
             'payment_mode.required' => 'Payment mode is required.',
         ]);
 
-        $advance = StaffAdvance::create(array_merge($data, [
-            'staff_id' => $staff->id,
-        ]));
+        try {
+            $advance = StaffAdvance::create(array_merge($data, [
+                'staff_id' => $staff->id,
+            ]));
 
-        return response()->json([
-            'success' => true,
-            'message' => "Advance of ₹{$advance->amount} given to {$staff->name}.",
-            'data'    => $advance,
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => "Advance of ₹{$advance->amount} given to {$staff->name}.",
+                'data'    => $advance,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while processing the advance.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -359,18 +440,26 @@ class StaffController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
-        $advances = StaffAdvance::where('staff_id', $staff->id)
-            ->when($request->is_deducted, fn($q, $v) => $q->where('is_deducted', (bool)$v))
-            ->latest()
-            ->paginate(20);
+        try {
+            $advances = StaffAdvance::where('staff_id', $staff->id)
+                ->when($request->is_deducted, fn($q, $v) => $q->where('is_deducted', (bool)$v))
+                ->latest()
+                ->paginate(20);
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'pending_amount' => $staff->pendingAdvanceAmount(),
-                'advances'       => $advances,
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'pending_amount' => $staff->pendingAdvanceAmount(),
+                    'advances'       => $advances,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching advance records.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -392,21 +481,29 @@ class StaffController extends Controller
             'year.required'  => 'Year is required.',
         ]);
 
-        $salary = $this->service->generateSalary($staff, $data['year'], $data['month']);
+        try {
+            $salary = $this->service->generateSalary($staff, $data['year'], $data['month']);
 
-        // Add bonus and other deduction if provided
-        if (isset($data['bonus']) || isset($data['other_deduction'])) {
-            $salary->update([
-                'bonus'           => $data['bonus']           ?? $salary->bonus,
-                'other_deduction' => $data['other_deduction'] ?? $salary->other_deduction,
+            // Add bonus and other deduction if provided
+            if (isset($data['bonus']) || isset($data['other_deduction'])) {
+                $salary->update([
+                    'bonus'           => $data['bonus']           ?? $salary->bonus,
+                    'other_deduction' => $data['other_deduction'] ?? $salary->other_deduction,
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Salary generated for {$staff->name} — {$salary->month}.",
+                'data'    => $salary->load('staff'),
             ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while generating salary.',
+                'error'   => $e->getMessage(),
+            ], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'message' => "Salary generated for {$staff->name} — {$salary->month}.",
-            'data'    => $salary->load('staff'),
-        ]);
     }
 
     // ─────────────────────────────────────────────────
@@ -434,13 +531,21 @@ class StaffController extends Controller
             'paid_on.required'      => 'Payment date is required.',
         ]);
 
-        $salary = $this->service->markSalaryPaid($salary, $data);
+        try {
+            $salary = $this->service->markSalaryPaid($salary, $data);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Salary of ₹{$salary->net_salary} paid to {$staff->name}.",
-            'data'    => $salary,
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => "Salary of ₹{$salary->net_salary} paid to {$staff->name}.",
+                'data'    => $salary,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while marking the salary as paid.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -451,17 +556,25 @@ class StaffController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
-        $salaries = StaffSalary::where('staff_id', $staff->id)
-            ->when($request->year, fn($q, $v) => $q->where('year', $v))
-            ->when($request->payment_status, fn($q, $v) => $q->where('payment_status', $v))
-            ->orderBy('year', 'desc')
-            ->orderBy('month', 'desc')
-            ->paginate(12);
+        try {
+            $salaries = StaffSalary::where('staff_id', $staff->id)
+                ->when($request->year, fn($q, $v) => $q->where('year', $v))
+                ->when($request->payment_status, fn($q, $v) => $q->where('payment_status', $v))
+                ->orderBy('year', 'desc')
+                ->orderBy('month', 'desc')
+                ->paginate(12);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $salaries,
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => $salaries,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching salary history.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -472,31 +585,39 @@ class StaffController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
-        $salary->load('staff');
-        $tenant = auth()->user()->tenant;
+        try {
+            $salary->load('staff');
+            $tenant = auth()->user()->tenant;
 
-        $absoluteDir = storage_path(
-            'app' . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR .
-                'tenants' . DIRECTORY_SEPARATOR . $staff->tenant_id . DIRECTORY_SEPARATOR . 'salary-slips'
-        );
+            $absoluteDir = storage_path(
+                'app' . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR .
+                    'tenants' . DIRECTORY_SEPARATOR . $staff->tenant_id . DIRECTORY_SEPARATOR . 'salary-slips'
+            );
 
-        $fileName     = "salary-{$staff->id}-{$salary->month}.pdf";
-        $absoluteFile = $absoluteDir . DIRECTORY_SEPARATOR . $fileName;
+            $fileName     = "salary-{$staff->id}-{$salary->month}.pdf";
+            $absoluteFile = $absoluteDir . DIRECTORY_SEPARATOR . $fileName;
 
-        if (!\Illuminate\Support\Facades\File::exists($absoluteDir)) {
-            \Illuminate\Support\Facades\File::makeDirectory($absoluteDir, 0775, true);
+            if (!\Illuminate\Support\Facades\File::exists($absoluteDir)) {
+                \Illuminate\Support\Facades\File::makeDirectory($absoluteDir, 0775, true);
+            }
+
+            \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.salary-slip', [
+                'staff'  => $staff,
+                'salary' => $salary,
+                'tenant' => $tenant,
+            ])->setPaper('a4')->save($absoluteFile);
+
+            return response()->file($absoluteFile, [
+                'Content-Type'        => 'application/pdf',
+                'Content-Disposition' => "inline; filename=\"salary-{$staff->name}-{$salary->month}.pdf\"",
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while generating the salary slip.',
+                'error'   => $e->getMessage(),
+            ], 500);
         }
-
-        \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.salary-slip', [
-            'staff'  => $staff,
-            'salary' => $salary,
-            'tenant' => $tenant,
-        ])->setPaper('a4')->save($absoluteFile);
-
-        return response()->file($absoluteFile, [
-            'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => "inline; filename=\"salary-{$staff->name}-{$salary->month}.pdf\"",
-        ]);
     }
 
     // ─────────────────────────────────────────────────
@@ -519,18 +640,26 @@ class StaffController extends Controller
             'document_file.max'      => 'File size must not exceed 5MB.',
         ]);
 
-        $doc = $this->service->uploadDocument(
-            $staff,
-            $request->only(['document_type', 'document_number', 'expiry_date', 'notes']),
-            $request->file('document_file')
-        );
+        try {
+            $doc = $this->service->uploadDocument(
+                $staff,
+                $request->only(['document_type', 'document_number', 'expiry_date', 'notes']),
+                $request->file('document_file')
+            );
 
-        return response()->json([
-            'success'  => true,
-            'message'  => 'Document uploaded successfully.',
-            'data'     => $doc,
-            'file_url' => asset("storage/{$doc->document_path}"),
-        ], 201);
+            return response()->json([
+                'success'  => true,
+                'message'  => 'Document uploaded successfully.',
+                'data'     => $doc,
+                'file_url' => asset("storage/{$doc->document_path}"),
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while uploading the document.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -541,20 +670,28 @@ class StaffController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        $trips = Trip::where(function ($q) use ($staff) {
-            $q->where('driver_id', $staff->id)
-                ->orWhere('helper_id', $staff->id);
-        })
-            ->when($request->from, fn($q, $v) => $q->whereDate('trip_date', '>=', $v))
-            ->when($request->to,   fn($q, $v) => $q->whereDate('trip_date', '<=', $v))
-            ->with(['customer', 'vehicle'])
-            ->latest('trip_date')
-            ->paginate($request->per_page ?? 20);
+        try {
+            $trips = Trip::where(function ($q) use ($staff) {
+                $q->where('driver_id', $staff->id)
+                    ->orWhere('helper_id', $staff->id);
+            })
+                ->when($request->from, fn($q, $v) => $q->whereDate('trip_date', '>=', $v))
+                ->when($request->to,   fn($q, $v) => $q->whereDate('trip_date', '<=', $v))
+                ->with(['customer', 'vehicle'])
+                ->latest('trip_date')
+                ->paginate($request->per_page ?? 20);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $trips,
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => $trips,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching trip history.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -566,36 +703,44 @@ class StaffController extends Controller
 
         $this->checkRole(['superadmin', 'admin']);
 
-        $month = $request->month ?? now()->format('m');
-        $year  = $request->year  ?? now()->format('Y');
+        try {
+            $month = $request->month ?? now()->format('m');
+            $year  = $request->year  ?? now()->format('Y');
 
-        $staff = Staff::withCount([
-            'driverTrips as driver_trips_count' => fn($q) => $q->whereMonth('trip_date', $month)->whereYear('trip_date', $year),
-            'helperTrips as helper_trips_count' => fn($q) => $q->whereMonth('trip_date', $month)->whereYear('trip_date', $year),
-        ])->get()->map(function ($s) use ($month, $year) {
-            $presentDays = StaffAttendance::where('staff_id', $s->id)
-                ->whereMonth('date', $month)
-                ->whereYear('date', $year)
-                ->whereIn('status', ['present', 'on_trip'])
-                ->count();
+            $staff = Staff::withCount([
+                'driverTrips as driver_trips_count' => fn($q) => $q->whereMonth('trip_date', $month)->whereYear('trip_date', $year),
+                'helperTrips as helper_trips_count' => fn($q) => $q->whereMonth('trip_date', $month)->whereYear('trip_date', $year),
+            ])->get()->map(function ($s) use ($month, $year) {
+                $presentDays = StaffAttendance::where('staff_id', $s->id)
+                    ->whereMonth('date', $month)
+                    ->whereYear('date', $year)
+                    ->whereIn('status', ['present', 'on_trip'])
+                    ->count();
 
-            return [
-                'id'           => $s->id,
-                'name'         => $s->name,
-                'type'         => $s->staff_type,
-                'total_trips'  => $s->driver_trips_count + $s->helper_trips_count,
-                'present_days' => $presentDays,
-                'is_available' => $s->is_available,
-            ];
-        });
+                return [
+                    'id'           => $s->id,
+                    'name'         => $s->name,
+                    'type'         => $s->staff_type,
+                    'total_trips'  => $s->driver_trips_count + $s->helper_trips_count,
+                    'present_days' => $presentDays,
+                    'is_available' => $s->is_available,
+                ];
+            });
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'period'      => ['month' => $month, 'year' => $year],
-                'performance' => $staff,
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'period'      => ['month' => $month, 'year' => $year],
+                    'performance' => $staff,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching performance data.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     private function checkRole(array $roles): void

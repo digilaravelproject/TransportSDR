@@ -7,6 +7,7 @@ use App\Models\{Corporate, CorporateDuty, CorporatePayment, CorporateFine};
 use App\Services\CorporateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Exception;
 
 class CorporateController extends Controller
 {
@@ -19,27 +20,35 @@ class CorporateController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        $corporates = Corporate::withCount(['duties', 'payments'])
-            ->when($request->duty_type,    fn($q, $v) => $q->where('duty_type', $v))
-            ->when($request->is_active,    fn($q, $v) => $q->where('is_active', (bool)$v))
-            ->when($request->search,       fn($q, $v) => $q->where(function ($q) use ($v) {
-                $q->where('company_name', 'like', "%{$v}%")
-                    ->orWhere('phone', 'like', "%{$v}%")
-                    ->orWhere('email', 'like', "%{$v}%");
-            }))
-            ->latest()
-            ->paginate($request->per_page ?? 20)
-            ->withQueryString();
+        try {
+            $corporates = Corporate::withCount(['duties', 'payments'])
+                ->when($request->duty_type,    fn($q, $v) => $q->where('duty_type', $v))
+                ->when($request->is_active,    fn($q, $v) => $q->where('is_active', (bool)$v))
+                ->when($request->search,       fn($q, $v) => $q->where(function ($q) use ($v) {
+                    $q->where('company_name', 'like', "%{$v}%")
+                        ->orWhere('phone', 'like', "%{$v}%")
+                        ->orWhere('email', 'like', "%{$v}%");
+                }))
+                ->latest()
+                ->paginate($request->per_page ?? 20)
+                ->withQueryString();
 
-        return response()->json([
-            'success' => true,
-            'data'    => $corporates,
-            'meta'    => [
-                'total'        => $corporates->total(),
-                'current_page' => $corporates->currentPage(),
-                'last_page'    => $corporates->lastPage(),
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => $corporates,
+                'meta'    => [
+                    'total'        => $corporates->total(),
+                    'current_page' => $corporates->currentPage(),
+                    'last_page'    => $corporates->lastPage(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching the corporate list.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -81,13 +90,21 @@ class CorporateController extends Controller
             'duty_type.required'     => 'Duty type is required.',
         ]);
 
-        $corporate = Corporate::create($data);
+        try {
+            $corporate = Corporate::create($data);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Corporate company added successfully.',
-            'data'    => $corporate,
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => 'Corporate company added successfully.',
+                'data'    => $corporate,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while adding the corporate company.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -97,25 +114,33 @@ class CorporateController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        $corporate->loadCount(['duties', 'payments']);
+        try {
+            $corporate->loadCount(['duties', 'payments']);
 
-        $pendingFines   = $corporate->pendingFinesAmount();
-        $lastPayment    = $corporate->payments()->latest()->first();
-        $todayDuties    = $corporate->duties()->whereDate('duty_date', today())->count();
-        $monthlyRevenue = $corporate->payments()
-            ->whereMonth('created_at', now()->month)
-            ->sum('total_amount');
+            $pendingFines   = $corporate->pendingFinesAmount();
+            $lastPayment    = $corporate->payments()->latest()->first();
+            $todayDuties    = $corporate->duties()->whereDate('duty_date', today())->count();
+            $monthlyRevenue = $corporate->payments()
+                ->whereMonth('created_at', now()->month)
+                ->sum('total_amount');
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'corporate'       => $corporate,
-                'pending_fines'   => $pendingFines,
-                'last_payment'    => $lastPayment,
-                'today_duties'    => $todayDuties,
-                'monthly_revenue' => $monthlyRevenue,
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'corporate'       => $corporate,
+                    'pending_fines'   => $pendingFines,
+                    'last_payment'    => $lastPayment,
+                    'today_duties'    => $todayDuties,
+                    'monthly_revenue' => $monthlyRevenue,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching corporate details.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -153,13 +178,21 @@ class CorporateController extends Controller
             'notes'             => 'nullable|string',
         ]);
 
-        $corporate->update($data);
+        try {
+            $corporate->update($data);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Corporate updated successfully.',
-            'data'    => $corporate->fresh(),
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Corporate updated successfully.',
+                'data'    => $corporate->fresh(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while updating corporate details.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -169,20 +202,28 @@ class CorporateController extends Controller
     {
         $this->checkRole(['superadmin', 'admin']);
 
-        $activeDuties = $corporate->duties()->where('duty_status', 'ongoing')->count();
-        if ($activeDuties > 0) {
+        try {
+            $activeDuties = $corporate->duties()->where('duty_status', 'ongoing')->count();
+            if ($activeDuties > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot delete. There are ongoing duties for this company.',
+                ], 422);
+            }
+
+            $corporate->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Corporate deleted successfully.',
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete. There are ongoing duties for this company.',
-            ], 422);
+                'message' => 'An unexpected error occurred while deleting the corporate.',
+                'error'   => $e->getMessage(),
+            ], 500);
         }
-
-        $corporate->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Corporate deleted successfully.',
-        ]);
     }
 
     // ─────────────────────────────────────────────────
@@ -193,20 +234,28 @@ class CorporateController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        $duties = CorporateDuty::where('corporate_id', $corporate->id)
-            ->with(['vehicle', 'driver'])
-            ->when($request->duty_status, fn($q, $v) => $q->where('duty_status', $v))
-            ->when($request->duty_type,   fn($q, $v) => $q->where('duty_type', $v))
-            ->when($request->from,        fn($q, $v) => $q->whereDate('duty_date', '>=', $v))
-            ->when($request->to,          fn($q, $v) => $q->whereDate('duty_date', '<=', $v))
-            ->when($request->is_holiday,  fn($q, $v) => $q->where('is_holiday', (bool)$v))
-            ->latest('duty_date')
-            ->paginate($request->per_page ?? 30);
+        try {
+            $duties = CorporateDuty::where('corporate_id', $corporate->id)
+                ->with(['vehicle', 'driver'])
+                ->when($request->duty_status, fn($q, $v) => $q->where('duty_status', $v))
+                ->when($request->duty_type,   fn($q, $v) => $q->where('duty_type', $v))
+                ->when($request->from,        fn($q, $v) => $q->whereDate('duty_date', '>=', $v))
+                ->when($request->to,          fn($q, $v) => $q->whereDate('duty_date', '<=', $v))
+                ->when($request->is_holiday,  fn($q, $v) => $q->where('is_holiday', (bool)$v))
+                ->latest('duty_date')
+                ->paginate($request->per_page ?? 30);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $duties,
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => $duties,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching duties.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -244,19 +293,27 @@ class CorporateController extends Controller
             'duty_type.required' => 'Duty type is required.',
         ]);
 
-        $duty = CorporateDuty::create(array_merge($data, [
-            'corporate_id' => $corporate->id,
-        ]));
+        try {
+            $duty = CorporateDuty::create(array_merge($data, [
+                'corporate_id' => $corporate->id,
+            ]));
 
-        // Preview billing calculation
-        $billing = $this->service->calculateDutyBilling($duty->fresh());
+            // Preview billing calculation
+            $billing = $this->service->calculateDutyBilling($duty->fresh());
 
-        return response()->json([
-            'success'  => true,
-            'message'  => "Duty {$duty->duty_number} added successfully.",
-            'data'     => $duty->load(['vehicle', 'driver']),
-            'billing'  => $billing,
-        ], 201);
+            return response()->json([
+                'success'  => true,
+                'message'  => "Duty {$duty->duty_number} added successfully.",
+                'data'     => $duty->load(['vehicle', 'driver']),
+                'billing'  => $billing,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while adding the duty.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -280,16 +337,24 @@ class CorporateController extends Controller
             'notes'         => 'nullable|string',
         ]);
 
-        $duty->update($data);
+        try {
+            $duty->update($data);
 
-        $billing = $this->service->calculateDutyBilling($duty->fresh());
+            $billing = $this->service->calculateDutyBilling($duty->fresh());
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Duty updated successfully.',
-            'data'    => $duty->fresh(['vehicle', 'driver']),
-            'billing' => $billing,
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Duty updated successfully.',
+                'data'    => $duty->fresh(['vehicle', 'driver']),
+                'billing' => $billing,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while updating the duty.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -312,24 +377,32 @@ class CorporateController extends Controller
             'fine_date.required' => 'Fine date is required.',
         ]);
 
-        $fine = CorporateFine::create(array_merge($data, [
-            'corporate_id' => $corporate->id,
-        ]));
+        try {
+            $fine = CorporateFine::create(array_merge($data, [
+                'corporate_id' => $corporate->id,
+            ]));
 
-        // Update duty fine amount if duty_id given
-        if (!empty($data['duty_id'])) {
-            $duty = CorporateDuty::find($data['duty_id']);
-            if ($duty) {
-                $totalFine = $duty->fines()->where('status', 'pending')->sum('amount');
-                $duty->update(['fine_amount' => $totalFine]);
+            // Update duty fine amount if duty_id given
+            if (!empty($data['duty_id'])) {
+                $duty = CorporateDuty::find($data['duty_id']);
+                if ($duty) {
+                    $totalFine = $duty->fines()->where('status', 'pending')->sum('amount');
+                    $duty->update(['fine_amount' => $totalFine]);
+                }
             }
-        }
 
-        return response()->json([
-            'success' => true,
-            'message' => "Fine of ₹{$fine->amount} added for {$corporate->company_name}.",
-            'data'    => $fine,
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => "Fine of ₹{$fine->amount} added for {$corporate->company_name}.",
+                'data'    => $fine,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while adding the fine.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -340,19 +413,27 @@ class CorporateController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
-        $fines = CorporateFine::where('corporate_id', $corporate->id)
-            ->with(['duty'])
-            ->when($request->status, fn($q, $v) => $q->where('status', $v))
-            ->latest('fine_date')
-            ->paginate(20);
+        try {
+            $fines = CorporateFine::where('corporate_id', $corporate->id)
+                ->with(['duty'])
+                ->when($request->status, fn($q, $v) => $q->where('status', $v))
+                ->latest('fine_date')
+                ->paginate(20);
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'pending_amount' => $corporate->pendingFinesAmount(),
-                'fines'          => $fines,
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'pending_amount' => $corporate->pendingFinesAmount(),
+                    'fines'          => $fines,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching fines.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -370,13 +451,21 @@ class CorporateController extends Controller
             ], 422);
         }
 
-        $fine->update(['status' => 'waived', 'notes' => $request->notes]);
+        try {
+            $fine->update(['status' => 'waived', 'notes' => $request->notes]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Fine waived successfully.',
-            'data'    => $fine->fresh(),
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Fine waived successfully.',
+                'data'    => $fine->fresh(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while waiving the fine.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -395,13 +484,21 @@ class CorporateController extends Controller
             'to.required'   => 'Billing to date is required.',
         ]);
 
-        $payment = $this->service->generateMonthlyInvoice($corporate, $data['from'], $data['to']);
+        try {
+            $payment = $this->service->generateMonthlyInvoice($corporate, $data['from'], $data['to']);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Invoice {$payment->invoice_number} generated. Total: ₹{$payment->total_amount}",
-            'data'    => $payment,
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => "Invoice {$payment->invoice_number} generated. Total: ₹{$payment->total_amount}",
+                'data'    => $payment,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while generating the invoice.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -429,7 +526,8 @@ class CorporateController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'An unexpected error occurred while processing the PDF download.',
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
@@ -454,21 +552,29 @@ class CorporateController extends Controller
             'paid_on.required'      => 'Payment date is required.',
         ]);
 
-        $newPaid = $payment->paid_amount + $data['paid_amount'];
+        try {
+            $newPaid = $payment->paid_amount + $data['paid_amount'];
 
-        $payment->update([
-            'paid_amount'     => $newPaid,
-            'payment_mode'    => $data['payment_mode'],
-            'paid_on'         => $data['paid_on'],
-            'transaction_ref' => $data['transaction_ref'] ?? $payment->transaction_ref,
-            'notes'           => $data['notes'] ?? $payment->notes,
-        ]);
+            $payment->update([
+                'paid_amount'     => $newPaid,
+                'payment_mode'    => $data['payment_mode'],
+                'paid_on'         => $data['paid_on'],
+                'transaction_ref' => $data['transaction_ref'] ?? $payment->transaction_ref,
+                'notes'           => $data['notes'] ?? $payment->notes,
+            ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Payment of ₹{$data['paid_amount']} recorded. Balance: ₹{$payment->fresh()->balance_amount}",
-            'data'    => $payment->fresh(),
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => "Payment of ₹{$data['paid_amount']} recorded. Balance: ₹{$payment->fresh()->balance_amount}",
+                'data'    => $payment->fresh(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while recording the payment.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -479,24 +585,32 @@ class CorporateController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
-        $payments = CorporatePayment::where('corporate_id', $corporate->id)
-            ->when($request->payment_status, fn($q, $v) => $q->where('payment_status', $v))
-            ->latest()
-            ->paginate(20);
+        try {
+            $payments = CorporatePayment::where('corporate_id', $corporate->id)
+                ->when($request->payment_status, fn($q, $v) => $q->where('payment_status', $v))
+                ->latest()
+                ->paginate(20);
 
-        $summary = [
-            'total_invoiced' => CorporatePayment::where('corporate_id', $corporate->id)->sum('total_amount'),
-            'total_paid'     => CorporatePayment::where('corporate_id', $corporate->id)->sum('paid_amount'),
-            'total_pending'  => CorporatePayment::where('corporate_id', $corporate->id)->where('payment_status', '!=', 'paid')->sum('balance_amount'),
-        ];
+            $summary = [
+                'total_invoiced' => CorporatePayment::where('corporate_id', $corporate->id)->sum('total_amount'),
+                'total_paid'     => CorporatePayment::where('corporate_id', $corporate->id)->sum('paid_amount'),
+                'total_pending'  => CorporatePayment::where('corporate_id', $corporate->id)->where('payment_status', '!=', 'paid')->sum('balance_amount'),
+            ];
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'summary'  => $summary,
-                'payments' => $payments,
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'summary'  => $summary,
+                    'payments' => $payments,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching payment history.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -507,33 +621,41 @@ class CorporateController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
-        $from = $request->from ?? now()->startOfMonth()->toDateString();
-        $to   = $request->to   ?? now()->toDateString();
+        try {
+            $from = $request->from ?? now()->startOfMonth()->toDateString();
+            $to   = $request->to   ?? now()->toDateString();
 
-        $duties = CorporateDuty::where('corporate_id', $corporate->id)
-            ->whereBetween('duty_date', [$from, $to])
-            ->get();
+            $duties = CorporateDuty::where('corporate_id', $corporate->id)
+                ->whereBetween('duty_date', [$from, $to])
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'corporate'  => $corporate,
-                'period'     => ['from' => $from, 'to' => $to],
-                'summary'    => [
-                    'total_duties'       => $duties->count(),
-                    'completed_duties'   => $duties->where('duty_status', 'completed')->count(),
-                    'cancelled_duties'   => $duties->where('duty_status', 'cancelled')->count(),
-                    'holiday_duties'     => $duties->where('is_holiday', true)->count(),
-                    'extra_duties'       => $duties->where('is_extra_duty', true)->count(),
-                    'total_km'           => round($duties->sum('total_km'), 2),
-                    'extra_km'           => round($duties->sum('extra_km'), 2),
-                    'total_extra_km_amt' => round($duties->sum('extra_km_amount'), 2),
-                    'total_holiday_amt'  => round($duties->sum('holiday_amount'), 2),
-                    'total_fines'        => $corporate->pendingFinesAmount(),
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'corporate'  => $corporate,
+                    'period'     => ['from' => $from, 'to' => $to],
+                    'summary'    => [
+                        'total_duties'       => $duties->count(),
+                        'completed_duties'   => $duties->where('duty_status', 'completed')->count(),
+                        'cancelled_duties'   => $duties->where('duty_status', 'cancelled')->count(),
+                        'holiday_duties'     => $duties->where('is_holiday', true)->count(),
+                        'extra_duties'       => $duties->where('is_extra_duty', true)->count(),
+                        'total_km'           => round($duties->sum('total_km'), 2),
+                        'extra_km'           => round($duties->sum('extra_km'), 2),
+                        'total_extra_km_amt' => round($duties->sum('extra_km_amount'), 2),
+                        'total_holiday_amt'  => round($duties->sum('holiday_amount'), 2),
+                        'total_fines'        => $corporate->pendingFinesAmount(),
+                    ],
+                    'duties' => $duties->load(['vehicle', 'driver']),
                 ],
-                'duties' => $duties->load(['vehicle', 'driver']),
-            ],
-        ]);
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while generating the report.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     private function checkRole(array $roles): void

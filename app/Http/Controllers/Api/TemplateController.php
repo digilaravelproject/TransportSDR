@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\{Trip, Lead, TemplateLog};
 use App\Services\Template\TemplateService;
 use Illuminate\Http\Request;
+use Exception;
 
 class TemplateController extends Controller
 {
@@ -23,15 +24,23 @@ class TemplateController extends Controller
             'type' => 'nullable|in:invoice_gst,invoice_non_gst,letterhead,quotation,einvoice',
         ]);
 
-        $logs = $this->templateService->getLogs(
-            $request->type,
-            $request->per_page ?? 20
-        );
+        try {
+            $logs = $this->templateService->getLogs(
+                $request->type,
+                $request->per_page ?? 20
+            );
 
-        return response()->json([
-            'success' => true,
-            'data'    => $logs,
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => $logs,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching templates.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -70,7 +79,8 @@ class TemplateController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'An unexpected error occurred during invoice generation.',
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
@@ -114,7 +124,8 @@ class TemplateController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'An unexpected error occurred while generating the letterhead.',
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
@@ -146,7 +157,8 @@ class TemplateController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'An unexpected error occurred while generating the quotation.',
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
@@ -188,55 +200,63 @@ class TemplateController extends Controller
             'amount.required'           => 'Amount is required.',
         ]);
 
-        $tenant    = auth()->user()->tenant;
-        $isGst     = $data['is_gst'] ?? false;
-        $gstPct    = $data['gst_percent'] ?? 5;
-        $taxAmt    = $isGst ? round($data['amount'] * $gstPct / 100, 2) : 0;
-        $validDays = $data['valid_days'] ?? 7;
+        try {
+            $tenant    = auth()->user()->tenant;
+            $isGst     = $data['is_gst'] ?? false;
+            $gstPct    = $data['gst_percent'] ?? 5;
+            $taxAmt    = $isGst ? round($data['amount'] * $gstPct / 100, 2) : 0;
+            $validDays = $data['valid_days'] ?? 7;
 
-        $result = $this->templateService->customQuotation($tenant, [
-            'customer' => [
-                'name'    => $data['customer_name'],
-                'contact' => $data['customer_contact'],
-                'email'   => $data['customer_email'] ?? null,
-                'address' => $data['customer_address'] ?? null,
-            ],
-            'trip' => [
-                'route'              => $data['trip_route'],
-                'date'               => \Carbon\Carbon::parse($data['trip_date'])->format('d-m-Y'),
-                'return_date'        => isset($data['return_date']) ? \Carbon\Carbon::parse($data['return_date'])->format('d-m-Y') : null,
-                'duration'           => $data['duration_days'],
-                'vehicle_type'       => $data['vehicle_type'],
-                'seating_capacity'   => $data['seating_capacity'],
-                'number_of_vehicles' => $data['number_of_vehicles'],
-                'pickup_address'     => $data['pickup_address'],
-                'destinations'       => $data['destinations'],
-            ],
-            'pricing' => [
-                'amount'           => $data['amount'],
-                'discount'         => $data['discount'] ?? 0,
-                'is_gst'           => $isGst,
-                'gst_percent'      => $gstPct,
-                'tax_amount'       => $taxAmt,
-                'total_with_tax'   => $data['amount'] + $taxAmt - ($data['discount'] ?? 0),
-                'advance_required' => $data['advance_required'] ?? 0,
-            ],
-            'date'       => now()->format('d-m-Y'),
-            'valid_till' => now()->addDays($validDays)->format('d-m-Y'),
-            'notes'      => $data['notes'] ?? null,
-        ]);
+            $result = $this->templateService->customQuotation($tenant, [
+                'customer' => [
+                    'name'    => $data['customer_name'],
+                    'contact' => $data['customer_contact'],
+                    'email'   => $data['customer_email'] ?? null,
+                    'address' => $data['customer_address'] ?? null,
+                ],
+                'trip' => [
+                    'route'              => $data['trip_route'],
+                    'date'               => \Carbon\Carbon::parse($data['trip_date'])->format('d-m-Y'),
+                    'return_date'        => isset($data['return_date']) ? \Carbon\Carbon::parse($data['return_date'])->format('d-m-Y') : null,
+                    'duration'           => $data['duration_days'],
+                    'vehicle_type'       => $data['vehicle_type'],
+                    'seating_capacity'   => $data['seating_capacity'],
+                    'number_of_vehicles' => $data['number_of_vehicles'],
+                    'pickup_address'     => $data['pickup_address'],
+                    'destinations'       => $data['destinations'],
+                ],
+                'pricing' => [
+                    'amount'           => $data['amount'],
+                    'discount'         => $data['discount'] ?? 0,
+                    'is_gst'           => $isGst,
+                    'gst_percent'      => $gstPct,
+                    'tax_amount'       => $taxAmt,
+                    'total_with_tax'   => $data['amount'] + $taxAmt - ($data['discount'] ?? 0),
+                    'advance_required' => $data['advance_required'] ?? 0,
+                ],
+                'date'       => now()->format('d-m-Y'),
+                'valid_till' => now()->addDays($validDays)->format('d-m-Y'),
+                'notes'      => $data['notes'] ?? null,
+            ]);
 
-        if (!file_exists($result['absolute_path'])) {
+            if (!file_exists($result['absolute_path'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Quotation generation failed.',
+                ], 500);
+            }
+
+            return response()->file($result['absolute_path'], [
+                'Content-Type'        => 'application/pdf',
+                'Content-Disposition' => "inline; filename=\"{$result['file_name']}\"",
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Quotation generation failed.',
+                'message' => 'An unexpected error occurred while generating the custom quotation.',
+                'error'   => $e->getMessage(),
             ], 500);
         }
-
-        return response()->file($result['absolute_path'], [
-            'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => "inline; filename=\"{$result['file_name']}\"",
-        ]);
     }
 
     // ─────────────────────────────────────────────────
@@ -256,11 +276,19 @@ class TemplateController extends Controller
             ], 422);
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'E-invoice payload preview.',
-            'data'    => $this->templateService->getEInvoicePayload($trip, $tenant),
-        ]);
+        try {
+            return response()->json([
+                'success' => true,
+                'message' => 'E-invoice payload preview.',
+                'data'    => $this->templateService->getEInvoicePayload($trip, $tenant),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while generating e-invoice payload.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -287,29 +315,37 @@ class TemplateController extends Controller
             ], 422);
         }
 
-        $result = $this->templateService->uploadEInvoice($trip, $tenant);
+        try {
+            $result = $this->templateService->uploadEInvoice($trip, $tenant);
 
-        if (!$result['success']) {
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message'],
+                ], 422);
+            }
+
+            // Download the generated PDF
+            if (isset($result['absolute_path']) && file_exists($result['absolute_path'])) {
+                return response()->file($result['absolute_path'], [
+                    'Content-Type'        => 'application/pdf',
+                    'Content-Disposition' => "inline; filename=\"einvoice-{$trip->trip_number}.pdf\"",
+                ]);
+            }
+
+            return response()->json([
+                'success'    => true,
+                'message'    => $result['message'],
+                'irn'        => $result['irn'],
+                'ack_number' => $result['ack_number'],
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $result['message'],
-            ], 422);
+                'message' => 'An unexpected error occurred while uploading the e-invoice.',
+                'error'   => $e->getMessage(),
+            ], 500);
         }
-
-        // Download the generated PDF
-        if (isset($result['absolute_path']) && file_exists($result['absolute_path'])) {
-            return response()->file($result['absolute_path'], [
-                'Content-Type'        => 'application/pdf',
-                'Content-Disposition' => "inline; filename=\"einvoice-{$trip->trip_number}.pdf\"",
-            ]);
-        }
-
-        return response()->json([
-            'success'    => true,
-            'message'    => $result['message'],
-            'irn'        => $result['irn'],
-            'ack_number' => $result['ack_number'],
-        ]);
     }
 
     // ─────────────────────────────────────────────────
@@ -324,12 +360,20 @@ class TemplateController extends Controller
             'reason' => 'required|string|max:255',
         ]);
 
-        $result = $this->templateService->cancelEInvoice($log, $data['reason']);
+        try {
+            $result = $this->templateService->cancelEInvoice($log, $data['reason']);
 
-        return response()->json([
-            'success' => $result['success'],
-            'message' => $result['message'],
-        ], $result['success'] ? 200 : 422);
+            return response()->json([
+                'success' => $result['success'],
+                'message' => $result['message'],
+            ], $result['success'] ? 200 : 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while canceling the e-invoice.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -347,20 +391,28 @@ class TemplateController extends Controller
             ], 404);
         }
 
-        $absolutePath = storage_path('app' . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR .
-            str_replace('/', DIRECTORY_SEPARATOR, $log->file_path));
+        try {
+            $absolutePath = storage_path('app' . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR .
+                str_replace('/', DIRECTORY_SEPARATOR, $log->file_path));
 
-        if (!file_exists($absolutePath)) {
+            if (!file_exists($absolutePath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File not found on server.',
+                ], 404);
+            }
+
+            return response()->file($absolutePath, [
+                'Content-Type'        => 'application/pdf',
+                'Content-Disposition' => "inline; filename=\"{$log->file_name}\"",
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'File not found on server.',
-            ], 404);
+                'message' => 'An unexpected error occurred while downloading the file.',
+                'error'   => $e->getMessage(),
+            ], 500);
         }
-
-        return response()->file($absolutePath, [
-            'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => "inline; filename=\"{$log->file_name}\"",
-        ]);
     }
 
     private function checkRole(array $roles): void

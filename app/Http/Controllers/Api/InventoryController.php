@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\{InventoryItem, InventoryTransaction, InventoryCategory};
 use App\Services\Inventory\InventoryService;
 use Illuminate\Http\Request;
+use Exception;
 
 class InventoryController extends Controller
 {
@@ -20,45 +21,53 @@ class InventoryController extends Controller
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
         $request->validate([
-            'item_type'   => 'nullable|string',
-            'category_id' => 'nullable|integer',
-            'vehicle_id'  => 'nullable|integer',
+            'item_type'    => 'nullable|string',
+            'category_id'  => 'nullable|integer',
+            'vehicle_id'   => 'nullable|integer',
             'stock_status' => 'nullable|in:in_stock,low_stock,out_of_stock,reorder_needed',
-            'search'      => 'nullable|string|max:100',
+            'search'       => 'nullable|string|max:100',
         ]);
 
-        $items = InventoryItem::with(['category', 'vehicle'])
-            ->when($request->item_type,   fn($q, $v) => $q->where('item_type', $v))
-            ->when($request->category_id, fn($q, $v) => $q->where('category_id', $v))
-            ->when($request->vehicle_id,  fn($q, $v) => $q->where('vehicle_id', $v))
-            ->when($request->stock_status, function ($q, $v) {
-                return match ($v) {
-                    'low_stock'      => $q->lowStock(),
-                    'out_of_stock'   => $q->outOfStock(),
-                    'reorder_needed' => $q->needsReorder(),
-                    default          => $q,
-                };
-            })
-            ->when($request->search, fn($q, $v) => $q->where(function ($q) use ($v) {
-                $q->where('name', 'like', "%{$v}%")
-                    ->orWhere('item_code', 'like', "%{$v}%")
-                    ->orWhere('brand', 'like', "%{$v}%")
-                    ->orWhere('barcode', 'like', "%{$v}%");
-            }))
-            ->active()
-            ->latest()
-            ->paginate($request->per_page ?? 20)
-            ->withQueryString();
+        try {
+            $items = InventoryItem::with(['category', 'vehicle'])
+                ->when($request->item_type,   fn($q, $v) => $q->where('item_type', $v))
+                ->when($request->category_id, fn($q, $v) => $q->where('category_id', $v))
+                ->when($request->vehicle_id,  fn($q, $v) => $q->where('vehicle_id', $v))
+                ->when($request->stock_status, function ($q, $v) {
+                    return match ($v) {
+                        'low_stock'      => $q->lowStock(),
+                        'out_of_stock'   => $q->outOfStock(),
+                        'reorder_needed' => $q->needsReorder(),
+                        default          => $q,
+                    };
+                })
+                ->when($request->search, fn($q, $v) => $q->where(function ($q) use ($v) {
+                    $q->where('name', 'like', "%{$v}%")
+                        ->orWhere('item_code', 'like', "%{$v}%")
+                        ->orWhere('brand', 'like', "%{$v}%")
+                        ->orWhere('barcode', 'like', "%{$v}%");
+                }))
+                ->active()
+                ->latest()
+                ->paginate($request->per_page ?? 20)
+                ->withQueryString();
 
-        return response()->json([
-            'success' => true,
-            'data'    => $items,
-            'meta'    => [
-                'total'        => $items->total(),
-                'current_page' => $items->currentPage(),
-                'last_page'    => $items->lastPage(),
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => $items,
+                'meta'    => [
+                    'total'        => $items->total(),
+                    'current_page' => $items->currentPage(),
+                    'last_page'    => $items->lastPage(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching inventory items.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -92,18 +101,26 @@ class InventoryController extends Controller
             'vendor_contact'      => 'nullable|string|max:15',
             'notes'               => 'nullable|string',
         ], [
-            'name.required'     => 'Item name is required.',
-            'unit.required'     => 'Unit is required.',
+            'name.required'      => 'Item name is required.',
+            'unit.required'      => 'Unit is required.',
             'item_type.required' => 'Item type is required.',
         ]);
 
-        $item = $this->inventoryService->createItem($data);
+        try {
+            $item = $this->inventoryService->createItem($data);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Item {$item->item_code} — {$item->name} added successfully.",
-            'data'    => $item->load('category'),
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => "Item {$item->item_code} — {$item->name} added successfully.",
+                'data'    => $item->load('category'),
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while adding the item.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -114,24 +131,32 @@ class InventoryController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        $item->load(['category', 'vehicle', 'creator']);
+        try {
+            $item->load(['category', 'vehicle', 'creator']);
 
-        $recentTransactions = InventoryTransaction::where('item_id', $item->id)
-            ->latest('transaction_date')
-            ->take(10)
-            ->get();
+            $recentTransactions = InventoryTransaction::where('item_id', $item->id)
+                ->latest('transaction_date')
+                ->take(10)
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'item'                => $item,
-                'stock_status'        => $item->stock_status,
-                'is_low_stock'        => $item->isLowStock(),
-                'is_out_of_stock'     => $item->isOutOfStock(),
-                'needs_reorder'       => $item->needsReorder(),
-                'recent_transactions' => $recentTransactions,
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'item'                => $item,
+                    'stock_status'        => $item->stock_status,
+                    'is_low_stock'        => $item->isLowStock(),
+                    'is_out_of_stock'     => $item->isOutOfStock(),
+                    'needs_reorder'       => $item->needsReorder(),
+                    'recent_transactions' => $recentTransactions,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching item details.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -164,13 +189,21 @@ class InventoryController extends Controller
             'notes'               => 'nullable|string',
         ]);
 
-        $item = $this->inventoryService->updateItem($item, $data);
+        try {
+            $item = $this->inventoryService->updateItem($item, $data);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Item updated successfully.',
-            'data'    => $item,
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Item updated successfully.',
+                'data'    => $item,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while updating the item.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -188,12 +221,20 @@ class InventoryController extends Controller
             ], 422);
         }
 
-        $item->delete();
+        try {
+            $item->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Item deleted successfully.',
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Item deleted successfully.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while deleting the item.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -222,13 +263,21 @@ class InventoryController extends Controller
             'transaction_date.required' => 'Transaction date is required.',
         ]);
 
-        $result = $this->inventoryService->stockIn($item, $data);
+        try {
+            $result = $this->inventoryService->stockIn($item, $data);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Stock in: +{$data['quantity']} {$item->unit}. New balance: {$result['item']->quantity_in_stock}",
-            'data'    => $result,
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => "Stock in: +{$data['quantity']} {$item->unit}. New balance: {$result['item']->quantity_in_stock}",
+                'data'    => $result,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred during stock in.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -255,13 +304,21 @@ class InventoryController extends Controller
             'transaction_date.required' => 'Transaction date is required.',
         ]);
 
-        $result = $this->inventoryService->stockOut($item, $data);
+        try {
+            $result = $this->inventoryService->stockOut($item, $data);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Stock out: -{$data['quantity']} {$item->unit}. Remaining: {$result['item']->quantity_in_stock}",
-            'data'    => $result,
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => "Stock out: -{$data['quantity']} {$item->unit}. Remaining: {$result['item']->quantity_in_stock}",
+                'data'    => $result,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred during stock out.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -282,13 +339,21 @@ class InventoryController extends Controller
             'reason.required'       => 'Reason for adjustment is required.',
         ]);
 
-        $result = $this->inventoryService->adjust($item, $data);
+        try {
+            $result = $this->inventoryService->adjust($item, $data);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Stock adjusted to {$data['new_quantity']} {$item->unit}.",
-            'data'    => $result,
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => "Stock adjusted to {$data['new_quantity']} {$item->unit}.",
+                'data'    => $result,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred during stock adjustment.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -307,13 +372,21 @@ class InventoryController extends Controller
             'notes'            => 'nullable|string',
         ]);
 
-        $result = $this->inventoryService->returnStock($item, $data);
+        try {
+            $result = $this->inventoryService->returnStock($item, $data);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Stock returned: +{$data['quantity']} {$item->unit}. New balance: {$result['item']->quantity_in_stock}",
-            'data'    => $result,
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => "Stock returned: +{$data['quantity']} {$item->unit}. New balance: {$result['item']->quantity_in_stock}",
+                'data'    => $result,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while processing the return.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -335,13 +408,21 @@ class InventoryController extends Controller
             'reason.required'   => 'Reason is required.',
         ]);
 
-        $result = $this->inventoryService->markDamaged($item, $data);
+        try {
+            $result = $this->inventoryService->markDamaged($item, $data);
 
-        return response()->json([
-            'success' => true,
-            'message' => "{$data['quantity']} {$item->unit} marked as damaged.",
-            'data'    => $result,
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => "{$data['quantity']} {$item->unit} marked as damaged.",
+                'data'    => $result,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while marking the stock as damaged.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -358,19 +439,27 @@ class InventoryController extends Controller
             'to'   => 'nullable|date',
         ]);
 
-        $history = $this->inventoryService->getHistory(
-            $item,
-            $request->only(['type', 'from', 'to']),
-            $request->per_page ?? 20
-        );
+        try {
+            $history = $this->inventoryService->getHistory(
+                $item,
+                $request->only(['type', 'from', 'to']),
+                $request->per_page ?? 20
+            );
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'item'    => $item->only(['id', 'name', 'item_code', 'unit', 'quantity_in_stock']),
-                'history' => $history,
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'item'    => $item->only(['id', 'name', 'item_code', 'unit', 'quantity_in_stock']),
+                    'history' => $history,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching the history.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -385,17 +474,25 @@ class InventoryController extends Controller
             'document' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 
-        $path = $this->inventoryService->uploadDocument(
-            $transaction,
-            $request->file('document'),
-            auth()->user()->tenant_id
-        );
+        try {
+            $path = $this->inventoryService->uploadDocument(
+                $transaction,
+                $request->file('document'),
+                auth()->user()->tenant_id
+            );
 
-        return response()->json([
-            'success'      => true,
-            'message'      => 'Document uploaded.',
-            'document_url' => asset("storage/{$path}"),
-        ]);
+            return response()->json([
+                'success'      => true,
+                'message'      => 'Document uploaded.',
+                'document_url' => asset("storage/{$path}"),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while uploading the document.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -406,19 +503,27 @@ class InventoryController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        $alerts = $this->inventoryService->getLowStockAlerts();
+        try {
+            $alerts = $this->inventoryService->getLowStockAlerts();
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'out_of_stock_count'  => count($alerts['out_of_stock']),
-                'low_stock_count'     => count($alerts['low_stock']),
-                'reorder_count'       => count($alerts['reorder_needed']),
-                'out_of_stock'        => $alerts['out_of_stock'],
-                'low_stock'           => $alerts['low_stock'],
-                'reorder_needed'      => $alerts['reorder_needed'],
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'out_of_stock_count'  => count($alerts['out_of_stock']),
+                    'low_stock_count'     => count($alerts['low_stock']),
+                    'reorder_count'       => count($alerts['reorder_needed']),
+                    'out_of_stock'        => $alerts['out_of_stock'],
+                    'low_stock'           => $alerts['low_stock'],
+                    'reorder_needed'      => $alerts['reorder_needed'],
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching low stock alerts.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -429,10 +534,18 @@ class InventoryController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $this->inventoryService->getValuation(),
-        ]);
+        try {
+            return response()->json([
+                'success' => true,
+                'data'    => $this->inventoryService->getValuation(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while calculating the valuation.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -443,10 +556,18 @@ class InventoryController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $this->inventoryService->getCategories(),
-        ]);
+        try {
+            return response()->json([
+                'success' => true,
+                'data'    => $this->inventoryService->getCategories(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching categories.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -465,13 +586,21 @@ class InventoryController extends Controller
             'name.required' => 'Category name is required.',
         ]);
 
-        $category = $this->inventoryService->createCategory($data);
+        try {
+            $category = $this->inventoryService->createCategory($data);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Category '{$category->name}' created.",
-            'data'    => $category,
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => "Category '{$category->name}' created.",
+                'data'    => $category,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while creating the category.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     private function checkRole(array $roles): void

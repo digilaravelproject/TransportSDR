@@ -8,6 +8,7 @@ use App\Http\Resources\TripResource;
 use App\Models\Trip;
 use App\Services\TripService;
 use Illuminate\Http\Request;
+use Exception;
 
 class TripController extends Controller
 {
@@ -18,48 +19,65 @@ class TripController extends Controller
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant', 'driver']);
 
         $user  = auth()->user();
-        $query = Trip::with(['vehicle', 'customer', 'driver'])
-            ->when($request->status,     fn($q, $v) => $q->where('status', $v))
-            ->when($request->from,       fn($q, $v) => $q->whereDate('trip_date', '>=', $v))
-            ->when($request->to,         fn($q, $v) => $q->whereDate('trip_date', '<=', $v))
-            ->when($request->driver_id,  fn($q, $v) => $q->where('driver_id', $v))
-            ->when($request->search,     fn($q, $v) => $q->where(function ($q) use ($v) {
-                $q->where('trip_number',   'like', "%{$v}%")
-                    ->orWhere('customer_name', 'like', "%{$v}%")
-                    ->orWhere('trip_route',    'like', "%{$v}%");
-            }));
 
-        // Driver sirf apni trips dekh sakta hai
-        if ($user->isDriver()) {
-            $query->where('driver_id', $user->staff?->id);
+        try {
+            $query = Trip::with(['vehicle', 'customer', 'driver'])
+                ->when($request->status,     fn($q, $v) => $q->where('status', $v))
+                ->when($request->from,       fn($q, $v) => $q->whereDate('trip_date', '>=', $v))
+                ->when($request->to,         fn($q, $v) => $q->whereDate('trip_date', '<=', $v))
+                ->when($request->driver_id,  fn($q, $v) => $q->where('driver_id', $v))
+                ->when($request->search,     fn($q, $v) => $q->where(function ($q) use ($v) {
+                    $q->where('trip_number',   'like', "%{$v}%")
+                        ->orWhere('customer_name', 'like', "%{$v}%")
+                        ->orWhere('trip_route',    'like', "%{$v}%");
+                }));
+
+            // Driver sirf apni trips dekh sakta hai
+            if ($user->isDriver()) {
+                $query->where('driver_id', $user->staff?->id);
+            }
+
+            $trips = $query->latest('trip_date')
+                ->paginate($request->per_page ?? 20)
+                ->withQueryString();
+
+            return response()->json([
+                'success' => true,
+                'data'    => TripResource::collection($trips),
+                'meta'    => [
+                    'total'        => $trips->total(),
+                    'current_page' => $trips->currentPage(),
+                    'last_page'    => $trips->lastPage(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching trips.',
+                'error'   => $e->getMessage(),
+            ], 500);
         }
-
-        $trips = $query->latest('trip_date')
-            ->paginate($request->per_page ?? 20)
-            ->withQueryString();
-
-        return response()->json([
-            'success' => true,
-            'data'    => TripResource::collection($trips),
-            'meta'    => [
-                'total'        => $trips->total(),
-                'current_page' => $trips->currentPage(),
-                'last_page'    => $trips->lastPage(),
-            ],
-        ]);
     }
 
     public function store(StoreTripRequest $request)
     {
         $this->checkRole(['superadmin', 'admin', 'operator']);
 
-        $trip = $this->service->store($request->validated());
+        try {
+            $trip = $this->service->store($request->validated());
 
-        return response()->json([
-            'success' => true,
-            'message' => "Trip {$trip->trip_number} created successfully.",
-            'data'    => new TripResource($trip),
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => "Trip {$trip->trip_number} created successfully.",
+                'data'    => new TripResource($trip),
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while creating the trip.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function show(Trip $trip)
@@ -76,25 +94,41 @@ class TripController extends Controller
             ], 403);
         }
 
-        $trip->load(['vehicle', 'customer', 'driver', 'helper', 'payments']);
+        try {
+            $trip->load(['vehicle', 'customer', 'driver', 'helper', 'payments']);
 
-        return response()->json([
-            'success' => true,
-            'data'    => new TripResource($trip),
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => new TripResource($trip),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching trip details.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function update(UpdateTripRequest $request, Trip $trip)
     {
         $this->checkRole(['superadmin', 'admin', 'operator']);
 
-        $trip = $this->service->update($trip, $request->validated());
+        try {
+            $trip = $this->service->update($trip, $request->validated());
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Trip updated successfully.',
-            'data'    => new TripResource($trip),
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Trip updated successfully.',
+                'data'    => new TripResource($trip),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while updating the trip.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function destroy(Trip $trip)
@@ -107,12 +141,20 @@ class TripController extends Controller
             'Cannot delete an ongoing trip.'
         );
 
-        $trip->delete();
+        try {
+            $trip->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Trip deleted successfully.',
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Trip deleted successfully.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while deleting the trip.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function updateKm(Request $request, Trip $trip)
@@ -124,14 +166,22 @@ class TripController extends Controller
             'end_km'   => 'required|numeric|min:0|gte:start_km',
         ]);
 
-        $trip->update($data);
-        $trip->refresh();
+        try {
+            $trip->update($data);
+            $trip->refresh();
 
-        return response()->json([
-            'success' => true,
-            'message' => "KM updated. Total: {$trip->total_km} km | Grade: {$trip->km_grade}",
-            'data'    => new TripResource($trip),
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => "KM updated. Total: {$trip->total_km} km | Grade: {$trip->km_grade}",
+                'data'    => new TripResource($trip),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while updating KM.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function updateStatus(Request $request, Trip $trip)
@@ -142,32 +192,48 @@ class TripController extends Controller
             'status' => 'required|in:scheduled,ongoing,completed,cancelled',
         ]);
 
-        if ($data['status'] === 'completed') {
-            $trip = $this->service->complete($trip);
-        } else {
-            $trip->update($data);
-        }
+        try {
+            if ($data['status'] === 'completed') {
+                $trip = $this->service->complete($trip);
+            } else {
+                $trip->update($data);
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => "Trip status updated to: {$trip->fresh()->status}",
-            'data'    => new TripResource($trip->fresh()),
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => "Trip status updated to: {$trip->fresh()->status}",
+                'data'    => new TripResource($trip->fresh()),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while updating trip status.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function addPayment(AddPaymentRequest $request, Trip $trip)
     {
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
-        $payment = $this->service->addPayment($trip, $request->validated());
+        try {
+            $payment = $this->service->addPayment($trip, $request->validated());
 
-        return response()->json([
-            'success' => true,
-            'message' => "Payment of ₹{$payment->amount} recorded successfully.",
-            'data'    => new TripResource(
-                $trip->fresh(['vehicle', 'customer', 'driver', 'payments'])
-            ),
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => "Payment of ₹{$payment->amount} recorded successfully.",
+                'data'    => new TripResource(
+                    $trip->fresh(['vehicle', 'customer', 'driver', 'payments'])
+                ),
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while adding the payment.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function invoice(Trip $trip)

@@ -10,7 +10,6 @@ use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use Exception;
 
-
 class CashBookController extends Controller
 {
     public function __construct(private CashBookService $cashBook) {}
@@ -32,19 +31,27 @@ class CashBookController extends Controller
             'search'       => 'nullable|string|max:100',
         ]);
 
-        $ledger = $this->cashBook->getLedger($request->only([
-            'from',
-            'to',
-            'entry_type',
-            'payment_mode',
-            'category',
-            'search',
-        ]));
+        try {
+            $ledger = $this->cashBook->getLedger($request->only([
+                'from',
+                'to',
+                'entry_type',
+                'payment_mode',
+                'category',
+                'search',
+            ]));
 
-        return response()->json([
-            'success' => true,
-            'data'    => $ledger,
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => $ledger,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching the cashbook entries.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -82,16 +89,24 @@ class CashBookController extends Controller
             'entry_date.required'  => 'Entry date is required.',
         ]);
 
-        $entry = $this->cashBook->createEntry($data);
+        try {
+            $entry = $this->cashBook->createEntry($data);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Cash book entry added successfully.',
-            'data'    => [
-                'entry'           => $entry,
-                'current_balance' => $this->cashBook->getCurrentBalance(),
-            ],
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => 'Cash book entry added successfully.',
+                'data'    => [
+                    'entry'           => $entry,
+                    'current_balance' => $this->cashBook->getCurrentBalance(),
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while creating the entry.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -102,10 +117,18 @@ class CashBookController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $entry->load('creator'),
-        ]);
+        try {
+            return response()->json([
+                'success' => true,
+                'data'    => $entry->load('creator'),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching the entry details.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -134,13 +157,21 @@ class CashBookController extends Controller
             'notes'         => 'nullable|string',
         ]);
 
-        $entry->update($data);
+        try {
+            $entry->update($data);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Entry updated successfully.',
-            'data'    => $entry->fresh(),
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Entry updated successfully.',
+                'data'    => $entry->fresh(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while updating the entry.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -151,13 +182,21 @@ class CashBookController extends Controller
     {
         $this->checkRole(['superadmin', 'admin']);
 
-        $entry->update(['status' => 'cancelled']);
-        $entry->delete();
+        try {
+            $entry->update(['status' => 'cancelled']);
+            $entry->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Entry cancelled and deleted.',
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Entry cancelled and deleted.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while deleting the entry.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -171,15 +210,23 @@ class CashBookController extends Controller
         $from = $request->from ?? now()->startOfMonth()->toDateString();
         $to   = $request->to   ?? now()->toDateString();
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'ledger'          => $this->cashBook->getLedger(['from' => $from, 'to' => $to]),
-                'monthly_summary' => $this->cashBook->getMonthlySummary(6),
-                'category_wise'   => $this->cashBook->getSummaryByCategory($from, $to),
-                'current_balance' => $this->cashBook->getCurrentBalance(),
-            ],
-        ]);
+        try {
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'ledger'          => $this->cashBook->getLedger(['from' => $from, 'to' => $to]),
+                    'monthly_summary' => $this->cashBook->getMonthlySummary(6),
+                    'category_wise'   => $this->cashBook->getSummaryByCategory($from, $to),
+                    'current_balance' => $this->cashBook->getCurrentBalance(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching the ledger.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -190,13 +237,21 @@ class CashBookController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'current_balance' => $this->cashBook->getCurrentBalance(),
-                'as_of'           => now()->format('d-m-Y H:i'),
-            ],
-        ]);
+        try {
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'current_balance' => $this->cashBook->getCurrentBalance(),
+                    'as_of'           => now()->format('d-m-Y H:i'),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching the balance.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -214,17 +269,25 @@ class CashBookController extends Controller
             'receipt.max'      => 'File size must not exceed 5MB.',
         ]);
 
-        $path = $this->cashBook->uploadReceipt(
-            $entry,
-            $request->file('receipt'),
-            auth()->user()->tenant_id
-        );
+        try {
+            $path = $this->cashBook->uploadReceipt(
+                $entry,
+                $request->file('receipt'),
+                auth()->user()->tenant_id
+            );
 
-        return response()->json([
-            'success'     => true,
-            'message'     => 'Receipt uploaded successfully.',
-            'receipt_url' => asset("storage/{$path}"),
-        ]);
+            return response()->json([
+                'success'     => true,
+                'message'     => 'Receipt uploaded successfully.',
+                'receipt_url' => asset("storage/{$path}"),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while uploading the receipt.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -246,18 +309,26 @@ class CashBookController extends Controller
         $from = $request->from ?? now()->startOfMonth()->toDateString();
         $to   = $request->to   ?? now()->toDateString();
 
-        $payments = $this->cashBook->getOnlinePayments(
-            $request->only(['gateway', 'status', 'from', 'to', 'search']),
-            $request->per_page ?? 20
-        );
+        try {
+            $payments = $this->cashBook->getOnlinePayments(
+                $request->only(['gateway', 'status', 'from', 'to', 'search']),
+                $request->per_page ?? 20
+            );
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'summary'  => $this->cashBook->getGatewaySummary($from, $to),
-                'payments' => $payments,
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'summary'  => $this->cashBook->getGatewaySummary($from, $to),
+                    'payments' => $payments,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching online payments.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -289,13 +360,21 @@ class CashBookController extends Controller
             'status.required'  => 'Status is required.',
         ]);
 
-        $payment = $this->cashBook->recordOnlinePayment($data);
+        try {
+            $payment = $this->cashBook->recordOnlinePayment($data);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Online payment of ₹{$payment->amount} recorded via {$payment->gateway}.",
-            'data'    => $payment,
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => "Online payment of ₹{$payment->amount} recorded via {$payment->gateway}.",
+                'data'    => $payment,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while recording the payment.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -316,18 +395,26 @@ class CashBookController extends Controller
             'gateway_response'   => 'nullable|string',
         ]);
 
-        $payment = $this->cashBook->updatePaymentStatus(
-            $payment,
-            $data['status'],
-            Arr::except($data ?? [], ['status'])
-        );
-        // print_r($payment);
-        // die;
-        return response()->json([
-            'success' => true,
-            'message' => "Payment status updated to: {$payment->status}.",
-            'data'    => $payment,
-        ]);
+        try {
+            $payment = $this->cashBook->updatePaymentStatus(
+                $payment,
+                $data['status'],
+                Arr::except($data ?? [], ['status'])
+            );
+            // print_r($payment);
+            // die;
+            return response()->json([
+                'success' => true,
+                'message' => "Payment status updated to: {$payment->status}.",
+                'data'    => $payment,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while updating the payment status.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -344,13 +431,21 @@ class CashBookController extends Controller
             'amount.max' => "Refund cannot exceed ₹{$payment->amount}.",
         ]);
 
-        $payment = $this->cashBook->refundPayment($payment, $data['amount']);
+        try {
+            $payment = $this->cashBook->refundPayment($payment, $data['amount']);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Refund of ₹{$data['amount']} processed.",
-            'data'    => $payment,
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => "Refund of ₹{$data['amount']} processed.",
+                'data'    => $payment,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while processing the refund.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -461,15 +556,23 @@ class CashBookController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'accountant', 'operator']);
 
-        $qrs = PaymentQr::when($request->is_active, fn($q, $v) => $q->where('is_active', (bool)$v))
-            ->when($request->qr_type, fn($q, $v) => $q->where('qr_type', $v))
-            ->latest()
-            ->paginate($request->per_page ?? 20);
+        try {
+            $qrs = PaymentQr::when($request->is_active, fn($q, $v) => $q->where('is_active', (bool)$v))
+                ->when($request->qr_type, fn($q, $v) => $q->where('qr_type', $v))
+                ->latest()
+                ->paginate($request->per_page ?? 20);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $qrs,
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => $qrs,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching QRs.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -480,15 +583,23 @@ class CashBookController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'accountant', 'operator']);
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'qr'           => $qr,
-                'qr_url'       => $qr->qr_url,
-                'is_expired'   => $qr->isExpired(),
-                'upi_deep_link' => $qr->upi_deep_link,
-            ],
-        ]);
+        try {
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'qr'           => $qr,
+                    'qr_url'       => $qr->qr_url,
+                    'is_expired'   => $qr->isExpired(),
+                    'upi_deep_link' => $qr->upi_deep_link,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching QR details.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -499,13 +610,21 @@ class CashBookController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
-        $qr = $this->cashBook->deactivateQr($qr);
+        try {
+            $qr = $this->cashBook->deactivateQr($qr);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'QR deactivated successfully.',
-            'data'    => $qr,
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'QR deactivated successfully.',
+                'data'    => $qr,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while deactivating QR.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -520,16 +639,24 @@ class CashBookController extends Controller
             'contact' => 'nullable|string|max:15',
         ]);
 
-        if ($request->contact) {
-            $qr->update(['alert_contact' => $request->contact]);
+        try {
+            if ($request->contact) {
+                $qr->update(['alert_contact' => $request->contact]);
+            }
+
+            $this->cashBook->sendQrAlert($qr->fresh());
+
+            return response()->json([
+                'success' => true,
+                'message' => "QR alert sent to {$qr->fresh()->alert_contact}.",
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while sending the QR alert.',
+                'error'   => $e->getMessage(),
+            ], 500);
         }
-
-        $this->cashBook->sendQrAlert($qr->fresh());
-
-        return response()->json([
-            'success' => true,
-            'message' => "QR alert sent to {$qr->fresh()->alert_contact}.",
-        ]);
     }
 
     // ─────────────────────────────────────────────────
@@ -547,20 +674,28 @@ class CashBookController extends Controller
             'note'     => 'nullable|string|max:255',
         ]);
 
-        $link = $this->cashBook->buildUpiLink(
-            $data['upi_id'],
-            $data['name'],
-            $data['amount'] ?? null,
-            $data['note']   ?? null
-        );
+        try {
+            $link = $this->cashBook->buildUpiLink(
+                $data['upi_id'],
+                $data['name'],
+                $data['amount'] ?? null,
+                $data['note']   ?? null
+            );
 
-        return response()->json([
-            'success'       => true,
-            'data'          => [
-                'upi_deep_link' => $link,
-                'qr_api_url'    => "https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=" . urlencode($link),
-            ],
-        ]);
+            return response()->json([
+                'success'       => true,
+                'data'          => [
+                    'upi_deep_link' => $link,
+                    'qr_api_url'    => "https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=" . urlencode($link),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while generating the UPI link.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     private function checkRole(array $roles): void

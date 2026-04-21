@@ -16,16 +16,11 @@ class Tenant extends Model
         'gstin',
         'address',
         'logo_path',
-        'plan',
-        'max_vehicles',
-        'max_trips_per_month',
         'is_active',
-        'plan_expires_at',
     ];
 
     protected $casts = [
-        'is_active'       => 'boolean',
-        'plan_expires_at' => 'datetime',
+        'is_active' => 'boolean',
     ];
 
     public function users()
@@ -51,7 +46,13 @@ class Tenant extends Model
 
     public function isActive(): bool
     {
-        return $this->is_active &&
-            ($this->plan_expires_at === null || $this->plan_expires_at->isFuture());
+        return $this->is_active === true;
+    }
+
+    public function getLogoUrlAttribute(): ?string
+    {
+        return $this->logo_path
+            ? asset("storage/{$this->logo_path}")
+            : null;
     }
 }
