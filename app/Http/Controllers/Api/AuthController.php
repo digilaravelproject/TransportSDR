@@ -1,5 +1,5 @@
 <?php
-
+// app/Http/Controllers/Api/AuthController.php
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -13,32 +13,26 @@ class AuthController extends Controller
     public function __construct(private OtpService $otpService) {}
 
     // ─────────────────────────────────────────────────
-    // POST /api/auth/register
-    // Admin self registration
+    // REGISTER STEP 1 — Send OTP to email
+    // POST /api/auth/register/send-otp
+    // Body: { vendor_name, owner_name, phone, email }
     // ─────────────────────────────────────────────────
-    public function register(Request $request)
+    public function registerSendOtp(Request $request)
     {
         try {
             $request->validate([
-                'vendor_name'           => 'required|string|max:255',
-                'email'                 => 'required|email|unique:users,email',
-                'phone'                 => 'required|string|max:15',
-                'password'              => 'required|string|min:8|confirmed',
-                'password_confirmation' => 'required|string',
-                'gstin'                 => 'nullable|string|max:15',
-                'address'               => 'nullable|string|max:500',
-                'logo'                  => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
+                'vendor_name' => 'required|string|max:255',
+                'owner_name'  => 'required|string|max:255',
+                'phone'       => 'required|digits:10',
+                'email'       => 'required|email|unique:users,email',
             ], [
-                'vendor_name.required'           => 'Vendor name is required.',
-                'email.required'                 => 'Email address is required.',
-                'email.unique'                   => 'This email is already registered.',
-                'phone.required'                 => 'Phone number is required.',
-                'password.required'              => 'Password is required.',
-                'password.min'                   => 'Password must be at least 8 characters.',
-                'password.confirmed'             => 'Password and confirm password do not match.',
-                'password_confirmation.required' => 'Please confirm your password.',
-                'logo.mimes'                     => 'Logo must be JPG or PNG.',
-                'logo.max'                       => 'Logo size must not exceed 2MB.',
+                'vendor_name.required' => 'Vendor name is required.',
+                'owner_name.required'  => 'Owner name is required.',
+                'phone.required'       => 'Mobile number is required.',
+                'phone.digits'         => 'Mobile number must be exactly 10 digits.',
+                'email.required'       => 'Email address is required.',
+                'email.email'          => 'Please enter a valid email address.',
+                'email.unique'         => 'This email is already registered. Please sign in.',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
@@ -49,32 +43,93 @@ class AuthController extends Controller
         }
 
         try {
-            return DB::transaction(function () use ($request) {
+            $this->otpService->sendRegistrationOtp(
+                $request->email,
+                $request->owner_name
+            );
 
-                // Logo upload
-                $logoPath = null;
-                if ($request->hasFile('logo')) {
-                    $file     = $request->file('logo');
-                    $fileName = 'logo-' . now()->format('YmdHis') . '.' . $file->extension();
-                    $stored   = $file->storeAs('public/tenants/logos', $fileName);
-                    $logoPath = str_replace('public/', '', $stored);
-                }
+            return response()->json([
+                'success' => true,
+                'message' => 'OTP has been sent to ' . $this->otpService->maskEmail($request->email) . '. Please verify to complete registration.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send OTP. Please try again.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // ─────────────────────────────────────────────────
+    // REGISTER STEP 2 — Verify OTP + Complete Registration
+    // POST /api/auth/register/verify
+    // Body: { vendor_name, owner_name, phone, email, otp, password, password_confirmation }
+    // ─────────────────────────────────────────────────
+    public function registerVerify(Request $request)
+    {
+        try {
+            $request->validate([
+                'vendor_name'           => 'required|string|max:255',
+                'owner_name'            => 'required|string|max:255',
+                'phone'                 => 'required|digits:10',
+                'email'                 => 'required|email|unique:users,email',
+                'otp'                   => 'required|digits:6',
+                // 'password'              => 'required|string|min:8|confirmed',
+                // 'password_confirmation' => 'required|string',
+            ], [
+                'vendor_name.required'           => 'Vendor name is required.',
+                'owner_name.required'            => 'Owner name is required.',
+                'phone.required'                 => 'Mobile number is required.',
+                'phone.digits'                   => 'Mobile number must be exactly 10 digits.',
+                'email.required'                 => 'Email address is required.',
+                'email.email'                    => 'Please enter a valid email address.',
+                'email.unique'                   => 'This email is already registered. Please sign in.',
+                'otp.required'                   => 'OTP is required.',
+                'otp.digits'                     => 'OTP must be exactly 6 digits.',
+                // 'password.required'              => 'Password is required.',
+                // 'password.min'                   => 'Password must be at least 8 characters.',
+                // 'password.confirmed'             => 'Password and confirm password do not match.',
+                // 'password_confirmation.required' => 'Please confirm your password.',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => $e->errors(),
+            ], 422);
+        }
+
+        try {
+            // Verify OTP
+            $result = $this->otpService->verify(
+                $request->email,
+                $request->otp,
+                'registration'
+            );
+
+            if (!$result['valid']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message'],
+                ], 422);
+            }
+
+            return DB::transaction(function () use ($request) {
 
                 // 1. Create Tenant
                 $tenant = Tenant::create([
                     'company_name' => $request->vendor_name,
+                    'owner_name'   => $request->owner_name,
                     'email'        => $request->email,
                     'phone'        => $request->phone,
-                    'gstin'        => $request->gstin   ?? null,
-                    'address'      => $request->address ?? null,
-                    'logo_path'    => $logoPath,
                     'is_active'    => true,
                 ]);
 
                 // 2. Create Admin User
                 $user = User::create([
                     'tenant_id' => $tenant->id,
-                    'name'      => $request->vendor_name,
+                    'name'      => $request->owner_name,
                     'email'     => $request->email,
                     'phone'     => $request->phone,
                     'password'  => Hash::make($request->password),
@@ -94,9 +149,7 @@ class AuthController extends Controller
                             'role'         => $user->role,
                             'tenant_id'    => $tenant->id,
                             'company_name' => $tenant->company_name,
-                            'gstin'        => $tenant->gstin,
-                            'address'      => $tenant->address,
-                            'logo_url'     => $tenant->logo_url,
+                            'owner_name'   => $tenant->owner_name,
                         ],
                     ],
                 ], 201);
@@ -111,25 +164,74 @@ class AuthController extends Controller
     }
 
     // ─────────────────────────────────────────────────
+    // REGISTER OTP RESEND
+    // POST /api/auth/register/resend-otp
+    // Body: { owner_name, email }
+    // ─────────────────────────────────────────────────
+    public function registerResendOtp(Request $request)
+    {
+        try {
+            $request->validate([
+                'owner_name' => 'required|string|max:255',
+                'email'      => 'required|email',
+            ], [
+                'owner_name.required' => 'Owner name is required.',
+                'email.required'      => 'Email address is required.',
+                'email.email'         => 'Please enter a valid email address.',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => $e->errors(),
+            ], 422);
+        }
+
+        try {
+            // Check email already registered nahi ho
+            $exists = User::where('email', $request->email)->exists();
+            if ($exists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This email is already registered. Please sign in.',
+                ], 422);
+            }
+
+            $this->otpService->sendRegistrationOtp(
+                $request->email,
+                $request->owner_name
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'A new OTP has been sent to ' . $this->otpService->maskEmail($request->email) . '.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to resend OTP. Please try again.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // ─────────────────────────────────────────────────
+    // EDIT PROFILE
     // POST /api/v1/auth/profile/update
-    // Edit profile — sirf jo field bhejo wahi update
+    // Fields: gstin, address, logo (all optional)
     // ─────────────────────────────────────────────────
     public function updateProfile(Request $request)
     {
         try {
             $request->validate([
-                'vendor_name' => 'nullable|string|max:255',
-                'phone'       => 'nullable|string|max:15',
-                'gstin'       => 'nullable|string|max:15',
-                'address'     => 'nullable|string|max:500',
-                'logo'        => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
+                'gstin'   => 'nullable|string|max:15',
+                'address' => 'nullable|string|max:500',
+                'logo'    => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
             ], [
-                'vendor_name.max' => 'Vendor name must not exceed 255 characters.',
-                'phone.max'       => 'Phone number must not exceed 15 digits.',
-                'gstin.max'       => 'GST number must not exceed 15 characters.',
-                'address.max'     => 'Address must not exceed 500 characters.',
-                'logo.mimes'      => 'Logo must be JPG or PNG.',
-                'logo.max'        => 'Logo size must not exceed 2MB.',
+                'gstin.max'    => 'GST number must not exceed 15 characters.',
+                'address.max'  => 'Address must not exceed 500 characters.',
+                'logo.mimes'   => 'Logo must be JPG or PNG.',
+                'logo.max'     => 'Logo size must not exceed 2MB.',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
@@ -151,18 +253,8 @@ class AuthController extends Controller
             }
 
             $tenantUpdate = [];
-            $userUpdate   = [];
 
-            if ($request->filled('vendor_name')) {
-                $tenantUpdate['company_name'] = $request->vendor_name;
-                $userUpdate['name']           = $request->vendor_name;
-            }
-
-            if ($request->filled('phone')) {
-                $tenantUpdate['phone'] = $request->phone;
-                $userUpdate['phone']   = $request->phone;
-            }
-
+            // Only update fields that are sent
             if ($request->filled('gstin')) {
                 $tenantUpdate['gstin'] = $request->gstin;
             }
@@ -184,7 +276,7 @@ class AuthController extends Controller
 
                     $file     = $request->file('logo');
                     $fileName = 'logo-' . $tenant->id . '-' . now()->format('YmdHis') . '.' . $file->extension();
-                    $stored   = $file->storeAs('public/tenants/logos', $fileName);
+                    $stored = $file->storeAs('tenants/logos', $fileName, 'public');
                     $tenantUpdate['logo_path'] = str_replace('public/', '', $stored);
                 } catch (\Exception $logoEx) {
                     return response()->json([
@@ -195,40 +287,28 @@ class AuthController extends Controller
             }
 
             // Kuch bhi update nahi karna
-            if (empty($tenantUpdate) && empty($userUpdate)) {
+            if (empty($tenantUpdate)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No data provided to update.',
+                    'message' => 'No data provided to update. Please send gstin, address or logo.',
                 ], 422);
             }
 
-            if (!empty($tenantUpdate)) {
-                $tenant->update($tenantUpdate);
-            }
-
-            if (!empty($userUpdate)) {
-                $user->update($userUpdate);
-            }
-
+            $tenant->update($tenantUpdate);
             $tenant->refresh();
-            $user->refresh();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Profile updated successfully.',
                 'data'    => [
-                    'user' => [
-                        'id'           => $user->id,
-                        'name'         => $user->name,
-                        'email'        => $user->email,
-                        'phone'        => $user->phone,
-                        'role'         => $user->role,
-                        'tenant_id'    => $tenant->id,
-                        'company_name' => $tenant->company_name,
-                        'gstin'        => $tenant->gstin,
-                        'address'      => $tenant->address,
-                        'logo_url'     => $tenant->logo_url,
-                    ],
+                    'tenant_id'    => $tenant->id,
+                    'company_name' => $tenant->company_name,
+                    'owner_name'   => $tenant->owner_name,
+                    'email'        => $tenant->email,
+                    'phone'        => $tenant->phone,
+                    'gstin'        => $tenant->gstin,
+                    'address'      => $tenant->address,
+                    'logo_url'     => $tenant->logo_url,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -365,6 +445,7 @@ class AuthController extends Controller
                     'role'         => $user->role,
                     'tenant_id'    => $user->tenant_id,
                     'company_name' => $user->tenant?->company_name,
+                    'owner_name'   => $user->tenant?->owner_name,
                     'gstin'        => $user->tenant?->gstin,
                     'address'      => $user->tenant?->address,
                     'logo_url'     => $user->tenant?->logo_url,
@@ -408,13 +489,6 @@ class AuthController extends Controller
                     'success' => false,
                     'message' => 'No account found with this email address.',
                 ], 404);
-            }
-
-            if (!$user->is_active) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Your account has been disabled. Please contact support.',
-                ], 403);
             }
 
             $this->otpService->sendLoginOtp($user);
@@ -486,7 +560,7 @@ class AuthController extends Controller
     }
 
     // ─────────────────────────────────────────────────
-    // FORGOT PASSWORD STEP 2 — Verify OTP only
+    // FORGOT PASSWORD STEP 2
     // POST /api/auth/verify-forgot-otp
     // ─────────────────────────────────────────────────
     public function verifyForgotOtp(Request $request)
@@ -519,7 +593,6 @@ class AuthController extends Controller
                 ], 404);
             }
 
-            // Sirf check — mark as used mat karo
             $result = $this->otpService->check($request->email, $request->otp, 'forgot_password');
 
             if (!$result['valid']) {
@@ -543,7 +616,7 @@ class AuthController extends Controller
     }
 
     // ─────────────────────────────────────────────────
-    // FORGOT PASSWORD STEP 3 — Reset Password
+    // FORGOT PASSWORD STEP 3
     // POST /api/auth/reset-password
     // ─────────────────────────────────────────────────
     public function resetPassword(Request $request)
@@ -556,7 +629,6 @@ class AuthController extends Controller
                 'password_confirmation' => 'required|string',
             ], [
                 'email.required'                 => 'Email address is required.',
-                'email.email'                    => 'Please enter a valid email address.',
                 'otp.required'                   => 'OTP is required.',
                 'otp.digits'                     => 'OTP must be exactly 6 digits.',
                 'password.required'              => 'New password is required.',
@@ -582,7 +654,6 @@ class AuthController extends Controller
                 ], 404);
             }
 
-            // Final verify + mark as used
             $result = $this->otpService->verify($request->email, $request->otp, 'forgot_password');
 
             if (!$result['valid']) {
@@ -616,7 +687,6 @@ class AuthController extends Controller
     {
         try {
             $request->user()->currentAccessToken()->delete();
-
             return response()->json([
                 'success' => true,
                 'message' => 'Logged out successfully.',
@@ -631,14 +701,13 @@ class AuthController extends Controller
     }
 
     // ─────────────────────────────────────────────────
-    // ME — Current user info
+    // ME
     // GET /api/v1/auth/me
     // ─────────────────────────────────────────────────
     public function me(Request $request)
     {
         try {
             $user = $request->user()->load('tenant');
-
             return response()->json([
                 'success' => true,
                 'data'    => [
@@ -649,6 +718,7 @@ class AuthController extends Controller
                     'role'         => $user->role,
                     'tenant_id'    => $user->tenant_id,
                     'company_name' => $user->tenant?->company_name,
+                    'owner_name'   => $user->tenant?->owner_name,
                     'gstin'        => $user->tenant?->gstin,
                     'address'      => $user->tenant?->address,
                     'logo_url'     => $user->tenant?->logo_url,

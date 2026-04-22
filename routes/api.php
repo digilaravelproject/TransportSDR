@@ -5,6 +5,13 @@ use App\Http\Controllers\Api;
 use App\Http\Controllers\SuperAdmin;
 
 // ── Public ─────────────────────────────────────────────────────
+
+// Registration — 2 step
+Route::post('/auth/register/send-otp',   [Api\AuthController::class, 'registerSendOtp']);
+Route::post('/auth/register/verify',     [Api\AuthController::class, 'registerVerify']);
+Route::post('/auth/register/resend-otp', [Api\AuthController::class, 'registerResendOtp']);
+
+
 // Route::post('/auth/login', [Api\AuthController::class, 'login']);
 Route::post('/auth/signup',          [Api\AuthController::class, 'signup']);
 Route::post('/auth/send-otp',        [Api\AuthController::class, 'sendLoginOtp']);
@@ -35,7 +42,7 @@ Route::middleware(['auth:sanctum', 'tenant'])
         // Auth
         Route::post('auth/logout', [Api\AuthController::class, 'logout']);
         Route::get('auth/me',      [Api\AuthController::class, 'me']);
-
+        Route::post('auth/profile/update',   [Api\AuthController::class, 'updateProfile']);
         // MODULE 1 — Trip Management
         Route::apiResource('trips', Api\TripController::class);
         Route::prefix('trips/{trip}')->group(function () {

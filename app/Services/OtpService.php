@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\{Otp, User};
-use App\Mail\{LoginOtpMail, ForgotPasswordOtpMail};
+use App\Mail\{LoginOtpMail, ForgotPasswordOtpMail, RegistrationOtpMail};
 use Illuminate\Support\Facades\Mail;
 
 class OtpService
@@ -15,7 +15,7 @@ class OtpService
 
     public function create(string $email, string $type): string
     {
-        // Delete previous OTPs
+        // Purane OTP delete
         Otp::where('email', $email)->where('type', $type)->delete();
 
         $otp = $this->generate();
@@ -39,31 +39,18 @@ class OtpService
             ->latest()
             ->first();
 
-        // Koi OTP record hi nahi mila
         if (!$record) {
-            return [
-                'valid'   => false,
-                'message' => 'Invalid OTP. Please request a new OTP.',
-            ];
+            return ['valid' => false, 'message' => 'Invalid OTP. Please request a new OTP.'];
         }
 
-        // OTP expire ho gaya
         if ($record->isExpired()) {
-            return [
-                'valid'   => false,
-                'message' => 'OTP has expired. Please request a new OTP.',
-            ];
+            return ['valid' => false, 'message' => 'OTP has expired. Please request a new OTP.'];
         }
 
-        // OTP wrong hai
         if ($record->otp !== $otp) {
-            return [
-                'valid'   => false,
-                'message' => 'Incorrect OTP. Please check and try again.',
-            ];
+            return ['valid' => false, 'message' => 'Incorrect OTP. Please check and try again.'];
         }
 
-        // Valid — mark as used
         $record->update(['is_used' => true]);
 
         return ['valid' => true];
@@ -78,27 +65,17 @@ class OtpService
             ->first();
 
         if (!$record) {
-            return [
-                'valid'   => false,
-                'message' => 'Invalid OTP. Please request a new OTP.',
-            ];
+            return ['valid' => false, 'message' => 'Invalid OTP. Please request a new OTP.'];
         }
 
         if ($record->isExpired()) {
-            return [
-                'valid'   => false,
-                'message' => 'OTP has expired. Please request a new OTP.',
-            ];
+            return ['valid' => false, 'message' => 'OTP has expired. Please request a new OTP.'];
         }
 
         if ($record->otp !== $otp) {
-            return [
-                'valid'   => false,
-                'message' => 'Incorrect OTP. Please check and try again.',
-            ];
+            return ['valid' => false, 'message' => 'Incorrect OTP. Please check and try again.'];
         }
 
-        // Valid — do NOT mark as used (step 3 karega)
         return ['valid' => true];
     }
 
@@ -112,6 +89,13 @@ class OtpService
     {
         $otp = $this->create($user->email, 'forgot_password');
         Mail::to($user->email)->send(new ForgotPasswordOtpMail($otp, $user->name));
+    }
+
+    // NEW — Registration OTP
+    public function sendRegistrationOtp(string $email, string $name): void
+    {
+        $otp = $this->create($email, 'registration');
+        Mail::to($email)->send(new RegistrationOtpMail($otp, $name));
     }
 
     public function maskEmail(string $email): string
