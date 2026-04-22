@@ -4,8 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminAuthController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\ManagePlansController;
-use App\Http\Controllers\Admin\ManageSubscriptionController;
-
+use App\Http\Controllers\Admin\ManageSubscriptionsController;
 Route::get('/', function () {
     return view('welcome');
 });
@@ -24,6 +23,10 @@ Route::prefix('admin')->group(function () {
         
         Route::resource('/plans', ManagePlansController::class, ['as' => 'admin']);
         
-        Route::get('/subscriptions', [ManageSubscriptionController::class, 'index'])->name('admin.subscriptions.index');
+        Route::get('/subscriptions/statistics', [ManageSubscriptionsController::class, 'statistics'])->name('admin.subscriptions.statistics');
+        Route::get('/subscriptions/export', [ManageSubscriptionsController::class, 'export'])->name('admin.subscriptions.export');
+        Route::post('/subscriptions/{subscription}/cancel', [ManageSubscriptionsController::class, 'cancel'])->name('admin.subscriptions.cancel');
+        Route::post('/subscriptions/{subscription}/renew', [ManageSubscriptionsController::class, 'renew'])->name('admin.subscriptions.renew');
+        Route::resource('/subscriptions', ManageSubscriptionsController::class, ['as' => 'admin']);
     });
 });

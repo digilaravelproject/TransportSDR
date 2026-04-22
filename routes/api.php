@@ -252,4 +252,17 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::post('/{item}/damage',                           [Api\InventoryController::class, 'markDamaged']);
             Route::get('/{item}/history',                           [Api\InventoryController::class, 'history']);
         });
+
+        // MODULE 10 — Subscriptions
+        Route::prefix('subscriptions')->group(function () {
+            Route::get('current', [Api\SubscriptionController::class, 'current']);
+            Route::get('stats', [Api\SubscriptionController::class, 'stats']);
+            Route::get('/', [Api\SubscriptionController::class, 'index']);
+            Route::post('/', [Api\SubscriptionController::class, 'store']);
+            Route::post('verify-payment', [Api\SubscriptionController::class, 'verifyPayment']);
+            Route::get('{id}', [Api\SubscriptionController::class, 'show']);
+            Route::post('{id}/cancel', [Api\SubscriptionController::class, 'cancel']);
+            Route::post('{id}/pause', [Api\SubscriptionController::class, 'pause']);
+            Route::post('{id}/resume', [Api\SubscriptionController::class, 'resume']);
+        });
     });
