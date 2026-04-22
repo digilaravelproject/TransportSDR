@@ -10,6 +10,8 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(AdminSeeder::class);
+
         // 1. Super Admin
         User::create([
             'tenant_id' => null,

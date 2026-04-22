@@ -22,6 +22,10 @@ Route::post('/auth/resend-login-otp', [Api\AuthController::class, 'resendLoginOt
 Route::post('/auth/forgot-password',  [Api\AuthController::class, 'forgotPassword']);
 Route::post('/auth/verify-forgot-otp', [Api\AuthController::class, 'verifyForgotOtp']);
 Route::post('/auth/reset-password',   [Api\AuthController::class, 'resetPassword']);
+// Plans Management - Specific routes BEFORE resource routing
+Route::get('plans/stats/total', [Api\PlanController::class, 'getTotalPlans']);
+Route::get('plans/list', [Api\PlanController::class, 'getTotalPlansList']);
+Route::apiResource('plans', Api\PlanController::class);
 
 // ── Super Admin ─────────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'superadmin'])
