@@ -52,6 +52,8 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::get('/{documentTemplate}', [Api\DocumentTemplateController::class, 'show']);
         });
 
+        Route::apiResource('roles', Api\RoleController::class);
+
         // Auth
         Route::post('auth/logout', [Api\AuthController::class, 'logout']);
         Route::get('auth/me',      [Api\AuthController::class, 'me']);
