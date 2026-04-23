@@ -12,6 +12,52 @@ class DocumentTemplateController extends Controller
     // GET /api/v1/document-templates
     // Query: ?category=invoice OR ?category_id=1
     // ─────────────────────────────────────────────────
+    // public function index(Request $request)
+    // {
+    //     try {
+    //         $templates = DocumentTemplate::with('category')
+    //             ->where('is_active', true)
+    //             ->when(
+    //                 $request->category,
+    //                 fn($q, $v) =>
+    //                 $q->whereHas('category', fn($q) => $q->where('slug', $v))
+    //             )
+    //             ->when(
+    //                 $request->category_id,
+    //                 fn($q, $v) =>
+    //                 $q->where('category_id', $v)
+    //             )
+    //             ->orderBy('sort_order')
+    //             ->get()
+    //             ->map(fn($t) => [
+    //                 'id'            => $t->id,
+    //                 'name'          => $t->name,
+    //                 'slug'          => $t->slug,
+    //                 'description'   => $t->description,
+    //                 'thumbnail_url' => $t->thumbnail_url,
+    //                 'is_default'    => $t->is_default,
+    //                 'variables'     => $t->variables,
+    //                 'category'      => [
+    //                     'id'    => $t->category->id,
+    //                     'name'  => $t->category->name,
+    //                     'slug'  => $t->category->slug,
+    //                     'icon'  => $t->category->icon,
+    //                     'color' => $t->category->color,
+    //                 ],
+    //             ]);
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'data'    => $templates,
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+
     public function index(Request $request)
     {
         try {
@@ -30,20 +76,15 @@ class DocumentTemplateController extends Controller
                 ->orderBy('sort_order')
                 ->get()
                 ->map(fn($t) => [
-                    'id'            => $t->id,
-                    'name'          => $t->name,
-                    'slug'          => $t->slug,
-                    'description'   => $t->description,
-                    'thumbnail_url' => $t->thumbnail_url,
-                    'is_default'    => $t->is_default,
-                    'variables'     => $t->variables,
-                    'category'      => [
-                        'id'    => $t->category->id,
-                        'name'  => $t->category->name,
-                        'slug'  => $t->category->slug,
-                        'icon'  => $t->category->icon,
-                        'color' => $t->category->color,
-                    ],
+                    'id'          => (string) $t->id, // Format as string
+                    'name'        => $t->name,
+                    'description' => $t->description ?? '',
+                    'type'        => $t->category->name, // Mapping type to category name
+                    'lastUpdated' => $t->updated_at->toIso8601String(), // Valid DateTime format
+                    // Preview URL generate ho rahi hai
+                    'url'         => route('admin.document-templates.preview', $t->id),
+                    'thumbnail'   => $t->thumbnail_url,
+                    'is_default'  => (bool) $t->is_default,
                 ]);
 
             return response()->json([

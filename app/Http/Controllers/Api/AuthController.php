@@ -560,8 +560,8 @@ class AuthController extends Controller
                 'success' => true,
                 'message' => 'Profile updated successfully.',
                 'data'    => [
-                    'user_id'      => $user->id,
-                    'user_name'    => $user->name,
+                    'id'      => $user->id,
+                    'name'    => $user->name,
                     'tenant_id'    => $tenant->id,
                     'company_name' => $tenant->company_name,
                     'owner_name'   => $tenant->owner_name,
@@ -645,6 +645,81 @@ class AuthController extends Controller
     // LOGIN STEP 2 — Verify OTP
     // POST /api/auth/verify-login-otp
     // ─────────────────────────────────────────────────
+    // public function verifyLoginOtp(Request $request)
+    // {
+    //     try {
+    //         $request->validate([
+    //             'email' => 'required|email',
+    //             'otp'   => 'required|digits:6',
+    //         ], [
+    //             'email.required' => 'Email address is required.',
+    //             'email.email'    => 'Please enter a valid email address.',
+    //             'otp.required'   => 'OTP is required.',
+    //             'otp.digits'     => 'OTP must be exactly 6 digits.',
+    //         ]);
+    //     } catch (\Illuminate\Validation\ValidationException $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Validation failed.',
+    //             'errors'  => $e->errors(),
+    //         ], 422);
+    //     }
+
+    //     try {
+    //         $user = User::where('email', $request->email)->first();
+
+    //         if (!$user) {
+    //             return response()->json([
+    //                 'success' => false,
+    //                 'message' => 'No account found with this email address.',
+    //             ], 404);
+    //         }
+
+    //         if (!$user->is_active) {
+    //             return response()->json([
+    //                 'success' => false,
+    //                 'message' => 'Your account has been disabled. Please contact support.',
+    //             ], 403);
+    //         }
+
+    //         $result = $this->otpService->verify($request->email, $request->otp, 'login');
+
+    //         if (!$result['valid']) {
+    //             return response()->json([
+    //                 'success' => false,
+    //                 'message' => $result['message'],
+    //             ], 422);
+    //         }
+
+    //         $user->tokens()->delete();
+    //         $token = $user->createToken('api-token')->plainTextToken;
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Login successful. Welcome back, ' . $user->name . '!',
+    //             'token'   => $token,
+    //             'user'    => [
+    //                 'id'           => $user->id,
+    //                 'name'         => $user->name,
+    //                 'email'        => $user->email,
+    //                 'phone'        => $user->tenant?->phone,
+    //                 'role'         => $user->role,
+    //                 'tenant_id'    => $user->tenant_id,
+    //                 'company_name' => $user->tenant?->company_name,
+    //                 'owner_name'   => $user->tenant?->owner_name,
+    //                 'gstin'        => $user->tenant?->gstin,
+    //                 'address'      => $user->tenant?->address,
+    //                 'logo_url'     => $user->tenant?->logo_url,
+    //             ],
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Login failed. Please try again.',
+    //             'error'   => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
     public function verifyLoginOtp(Request $request)
     {
         try {
@@ -666,7 +741,8 @@ class AuthController extends Controller
         }
 
         try {
-            $user = User::where('email', $request->email)->first();
+            // Yahan with('tenant') add kiya hai taaki tenant relation load ho jaye
+            $user = User::with('tenant')->where('email', $request->email)->first();
 
             if (!$user) {
                 return response()->json([
@@ -702,7 +778,7 @@ class AuthController extends Controller
                     'id'           => $user->id,
                     'name'         => $user->name,
                     'email'        => $user->email,
-                    'phone'        => $user->phone,
+                    'phone'        => $user->tenant?->phone, // Ab ye value correctly mil jayegi
                     'role'         => $user->role,
                     'tenant_id'    => $user->tenant_id,
                     'company_name' => $user->tenant?->company_name,
@@ -975,7 +1051,7 @@ class AuthController extends Controller
                     'id'           => $user->id,
                     'name'         => $user->name,
                     'email'        => $user->email,
-                    'phone'        => $user->phone,
+                    'phone'        => $user->tenant?->phone,
                     'role'         => $user->role,
                     'tenant_id'    => $user->tenant_id,
                     'company_name' => $user->tenant?->company_name,
