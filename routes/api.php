@@ -48,6 +48,7 @@ Route::middleware(['auth:sanctum', 'tenant'])
         Route::prefix('document-templates')->group(function () {
             Route::get('/categories',    [Api\DocumentTemplateController::class, 'categories']);
             Route::get('/',              [Api\DocumentTemplateController::class, 'index']);
+            Route::post('/submit',       [Api\DocumentTemplateController::class, 'submit']);
             Route::get('/{documentTemplate}', [Api\DocumentTemplateController::class, 'show']);
         });
 

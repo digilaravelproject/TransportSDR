@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\{DocumentTemplate, TemplateCategory};
+use App\Models\{DocumentTemplate, DocumentTemplateSubmission, TemplateCategory};
 use Illuminate\Http\Request;
 
 class DocumentTemplateController extends Controller
@@ -61,18 +61,60 @@ class DocumentTemplateController extends Controller
     public function index(Request $request)
     {
         try {
+            $request->validate([
+                'name'        => 'nullable|string|max:255',
+                'search'      => 'nullable|string|max:255',
+                'category'    => 'nullable|string|max:255',
+                'category_id' => 'nullable|integer|exists:template_categories,id',
+                'type'        => 'nullable|string|max:255',
+                'is_default'  => 'nullable|boolean',
+            ]);
+
             $templates = DocumentTemplate::with('category')
                 ->where('is_active', true)
                 ->when(
+                    $request->name,
+                    fn($q, $v) =>
+                    $q->where('name', 'like', "%{$v}%")
+                )
+                ->when(
                     $request->category,
                     fn($q, $v) =>
-                    $q->whereHas('category', fn($q) => $q->where('slug', $v))
+                    $q->whereHas('category', fn($q) => $q
+                        ->where('slug', $v)
+                        ->orWhere('name', 'like', "%{$v}%"))
                 )
                 ->when(
                     $request->category_id,
                     fn($q, $v) =>
                     $q->where('category_id', $v)
                 )
+                ->when(
+                    $request->type,
+                    fn($q, $v) =>
+                    $q->whereHas('category', fn($q) => $q
+                        ->where('slug', $v)
+                        ->orWhere('name', 'like', "%{$v}%"))
+                )
+                ->when(
+                    $request->filled('is_default'),
+                    fn($q) =>
+                    $q->where('is_default', $request->boolean('is_default'))
+                )
+                ->when(
+                    $request->search,
+                    fn($q, $v) =>
+                    $q->where(function ($query) use ($v) {
+                        $query->where('name', 'like', "%{$v}%")
+                            ->orWhere('slug', 'like', "%{$v}%")
+                            ->orWhere('description', 'like', "%{$v}%")
+                            ->orWhereHas('category', fn($categoryQuery) => $categoryQuery
+                                ->where('name', 'like', "%{$v}%")
+                                ->orWhere('slug', 'like', "%{$v}%")
+                            );
+                    })
+                )
+                ->orderBy('is_default', 'desc')
                 ->orderBy('sort_order')
                 ->get()
                 ->map(fn($t) => [
@@ -166,6 +208,63 @@ class DocumentTemplateController extends Controller
                     ],
                 ],
             ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // POST /api/v1/document-templates/submit
+    // Save selected template against current tenant/user and related record
+    public function submit(Request $request)
+    {
+        $data = $request->validate([
+            'document_template_id' => 'required|integer|exists:document_templates,id',
+            'reference_type'       => 'nullable|string|max:100',
+            'reference_id'         => 'nullable|integer|min:1',
+        ], [
+            'document_template_id.required' => 'Template select karna zaroori hai.',
+            'document_template_id.exists'   => 'Selected template valid nahi hai.',
+            'reference_id.integer'          => 'Reference ID valid number hona chahiye.',
+        ]);
+
+        try {
+            $user = $request->user();
+
+            $template = DocumentTemplate::with('category')
+                ->where('is_active', true)
+                ->findOrFail($data['document_template_id']);
+
+            $submission = DocumentTemplateSubmission::create([
+                'tenant_id'             => $user->tenant_id,
+                'user_id'               => $user->id,
+                'document_template_id'  => $template->id,
+                'template_type'         => $template->category?->slug ?? 'other',
+                'reference_type'        => $data['reference_type'] ?? null,
+                'reference_id'          => $data['reference_id'] ?? null,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Template selection saved successfully.',
+                'data'    => [
+                    'id'                   => $submission->id,
+                    'tenant_id'            => $submission->tenant_id,
+                    'user_id'              => $submission->user_id,
+                    'document_template_id' => $submission->document_template_id,
+                    'template_type'        => $submission->template_type,
+                    'reference_type'       => $submission->reference_type,
+                    'reference_id'         => $submission->reference_id,
+                    'template_name'        => $template->name,
+                ],
+            ], 201);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected template not found or inactive.',
+            ], 404);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
