@@ -125,6 +125,12 @@
                             Manage Routes
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link @if(str_contains(Route::currentRouteName(), 'admin.modules')) active @endif" href="{{ route('admin.modules.index') }}">
+                            <i class="fas fa-cubes me-2"></i>
+                            Manage Modules
+                        </a>
+                    </li>
                     <li class="nav-item mt-3">
                         <form method="POST" action="{{ route('admin.logout') }}">
                             @csrf

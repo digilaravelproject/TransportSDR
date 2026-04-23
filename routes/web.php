@@ -60,5 +60,7 @@ Route::prefix('admin')->group(function () {
         Route::resource('/routes', App\Http\Controllers\Admin\ManageRoutesController::class, ['as' => 'admin']);
         Route::post('/routes/{route}/add-vehicle', [App\Http\Controllers\Admin\ManageRoutesController::class, 'addVehicle'])->name('admin.routes.add-vehicle');
         Route::post('/routes/{route}/remove-vehicle', [App\Http\Controllers\Admin\ManageRoutesController::class, 'removeVehicle'])->name('admin.routes.remove-vehicle');
+        // Manage Modules
+        Route::resource('/modules', App\Http\Controllers\Admin\ModuleController::class, ['as' => 'admin']);
     });
 });

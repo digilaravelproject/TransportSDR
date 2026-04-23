@@ -21,6 +21,7 @@ class Plan extends Model
         'features',
         'status',
         'sort_order',
+        'module_access',
     ];
 
     protected $casts = [
@@ -31,7 +32,15 @@ class Plan extends Model
         'max_staff' => 'integer',
         'billing_cycle_days' => 'integer',
         'sort_order' => 'integer',
+        'module_access' => 'string',
     ];
+    /**
+     * Get module names as array.
+     */
+    public function getModuleAccessArrayAttribute()
+    {
+        return $this->module_access ? array_map('trim', explode(',', $this->module_access)) : [];
+    }
 
     public function scopeActive($query)
     {

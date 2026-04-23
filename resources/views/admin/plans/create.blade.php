@@ -125,6 +125,17 @@
                         @enderror
                     </div>
 
+
+                    <div class="mb-3">
+                        <label for="module_access" class="form-label">Module Access</label>
+                        <select name="module_access[]" id="module_access" class="form-select" multiple>
+                            @foreach($modules as $module)
+                                <option value="{{ $module->name }}" @if(collect(old('module_access'))->contains($module->name)) selected @endif>{{ $module->name }}</option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">Hold Ctrl (Windows) or Cmd (Mac) to select multiple modules</small>
+                    </div>
+
                     <div class="mb-4">
                         <label class="form-label">Features (Comma separated)</label>
                         <textarea id="features_text" class="form-control" rows="4" placeholder="Email Support, Mobile App, Basic Tracking"></textarea>

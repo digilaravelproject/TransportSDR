@@ -58,6 +58,19 @@
                     </div>
                 </div>
 
+
+                <h6 class="mb-2">Modules:</h6>
+                <ul class="list-unstyled mb-3">
+                    @forelse($plan->module_access_array as $module)
+                        <li class="mb-2">
+                            <i class="fas fa-cube text-primary me-2"></i>
+                            {{ $module }}
+                        </li>
+                    @empty
+                        <li class="text-muted">No modules assigned</li>
+                    @endforelse
+                </ul>
+
                 <h6 class="mb-2">Features:</h6>
                 <ul class="list-unstyled mb-3">
                     @if($plan->features)

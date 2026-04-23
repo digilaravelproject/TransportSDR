@@ -24,6 +24,7 @@ class PlanResource extends JsonResource
             'max_vehicles' => $this->max_vehicles,
             'max_trips_per_month' => $this->max_trips_per_month,
             'max_staff' => $this->max_staff,
+            'module_access' => $this->module_access ?? [],
             'features' => $this->features ?? [],
             'status' => $this->status,
             'sort_order' => $this->sort_order,

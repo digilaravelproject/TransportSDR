@@ -14,7 +14,10 @@ class ShiftController extends Controller {
      */
     public function driversList(Request $request)
     {
-        $drivers = \App\Models\Staff::where('user_id', '!=', null)->where('is_active', true)->where('staff_type', 'driver')->get();
+        // $drivers = \App\Models\Staff::where('user_id', '!=', null)->where('is_active', true)->where('staff_type', 'driver')->get();
+
+        $drivers = \App\Models\Staff::withoutGlobalScopes()->withTrashed()->where('user_id', '!=', null)->where('is_active', true)->where('staff_type', 'driver')->get();
+        
         return response()->json([
             'success' => true,
             'message' => 'Drivers list retrieved successfully',

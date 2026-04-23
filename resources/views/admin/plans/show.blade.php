@@ -82,6 +82,23 @@
                     </div>
                 </div>
 
+
+                <hr>
+
+                <h6 class="mb-3">Modules</h6>
+                @if($plan->module_access_array)
+                    <ul class="list-unstyled">
+                        @foreach($plan->module_access_array as $module)
+                            <li class="mb-2">
+                                <i class="fas fa-cube text-primary me-2"></i>
+                                {{ $module }}
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="text-muted">No modules assigned</p>
+                @endif
+
                 <hr>
 
                 <h6 class="mb-3">Features</h6>

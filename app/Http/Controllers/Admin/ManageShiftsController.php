@@ -97,7 +97,10 @@ class ManageShiftsController extends Controller
     public function show(Shift $shift)
     {
         $shift->load(['drivers']);
-        $availableDrivers = \App\Models\Staff::where('user_id', '!=', null)->where('is_active', true)->where('staff_type', 'driver')->get();
+        // $availableDrivers = \App\Models\Staff::where('user_id', '!=', null)->where('is_active', true)->where('staff_type', 'driver')->get();
+
+        $availableDrivers = \App\Models\Staff::withoutGlobalScopes()->withTrashed()->where('user_id', '!=', null)->where('is_active', true)->where('staff_type', 'driver')->get();
+
         return view('admin.shifts.show', compact('shift', 'availableDrivers'));
     }
 

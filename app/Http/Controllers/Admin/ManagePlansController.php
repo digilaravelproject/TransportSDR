@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
+use App\Models\Module;
 use Illuminate\Http\Request;
 
 class ManagePlansController extends Controller
@@ -37,7 +38,8 @@ class ManagePlansController extends Controller
      */
     public function create()
     {
-        return view('admin.plans.create');
+        $modules = Module::all();
+        return view('admin.plans.create', compact('modules'));
     }
 
     /**
@@ -57,7 +59,10 @@ class ManagePlansController extends Controller
             'features' => 'nullable|array',
             'status' => 'required|in:active,inactive',
             'sort_order' => 'nullable|integer|min:0',
+            'module_access' => 'nullable|array',
         ]);
+
+        $validated['module_access'] = isset($validated['module_access']) ? implode(',', $validated['module_access']) : null;
 
         $plan = Plan::create($validated);
 
@@ -70,7 +75,8 @@ class ManagePlansController extends Controller
      */
     public function edit(Plan $plan)
     {
-        return view('admin.plans.edit', compact('plan'));
+        $modules = Module::all();
+        return view('admin.plans.edit', compact('plan', 'modules'));
     }
 
     /**
@@ -90,7 +96,10 @@ class ManagePlansController extends Controller
             'features' => 'nullable|array',
             'status' => 'required|in:active,inactive',
             'sort_order' => 'nullable|integer|min:0',
+            'module_access' => 'nullable|array',
         ]);
+
+        $validated['module_access'] = isset($validated['module_access']) ? implode(',', $validated['module_access']) : null;
 
         $plan->update($validated);
 
