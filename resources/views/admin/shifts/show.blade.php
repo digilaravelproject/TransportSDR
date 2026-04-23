@@ -20,10 +20,10 @@
                         <h6 class="text-muted">Time Range</h6>
                         <p class="h5">{{ $shift->time_range }}</p>
                     </div>
-                    <div class="col-md-6">
+                    <?php /*<div class="col-md-6">
                         <h6 class="text-muted">Duration</h6>
                         <p class="h5">{{ $shift->calculateDuration() }} Hours</p>
-                    </div>
+                    </div> */?>
                 </div>
 
                 <div class="row mb-3">

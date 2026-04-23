@@ -119,6 +119,12 @@
                             Templates
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link @if(str_contains(Route::currentRouteName(), 'admin.routes')) active @endif" href="{{ route('admin.routes.index') }}">
+                            <i class="fas fa-route me-2"></i>
+                            Manage Routes
+                        </a>
+                    </li>
                     <li class="nav-item mt-3">
                         <form method="POST" action="{{ route('admin.logout') }}">
                             @csrf

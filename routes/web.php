@@ -55,5 +55,10 @@ Route::prefix('admin')->group(function () {
         Route::resource('/shifts', ManageShiftsController::class, ['as' => 'admin']);
         Route::post('/shifts/{shift}/add-driver', [ManageShiftsController::class, 'addDriver'])->name('admin.shifts.add-driver');
         Route::post('/shifts/{shift}/remove-driver', [ManageShiftsController::class, 'removeDriver'])->name('admin.shifts.remove-driver');
+
+        // Manage Routes
+        Route::resource('/routes', App\Http\Controllers\Admin\ManageRoutesController::class, ['as' => 'admin']);
+        Route::post('/routes/{route}/add-vehicle', [App\Http\Controllers\Admin\ManageRoutesController::class, 'addVehicle'])->name('admin.routes.add-vehicle');
+        Route::post('/routes/{route}/remove-vehicle', [App\Http\Controllers\Admin\ManageRoutesController::class, 'removeVehicle'])->name('admin.routes.remove-vehicle');
     });
 });
