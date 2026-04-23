@@ -161,13 +161,15 @@ class SubscriptionController extends Controller
             // Create Razorpay order for payment
             try {
                 $order = $this->createRazorpayOrder($user, $plan, $subscription);
+
+                $order['razorpay_key'] = config('services.razorpay.key');
                 
                 return response()->json([
                     'success' => true,
                     'message' => 'Subscription initiated. Complete payment to activate.',
                     'data' => [
                         'subscription' => new SubscriptionResource($subscription),
-                        'razorpay_order' => $order,
+                        'razorpay_order' => $order ? $order->toArray() : null,
                     ],
                 ], 201);
             } catch (Exception $e) {
