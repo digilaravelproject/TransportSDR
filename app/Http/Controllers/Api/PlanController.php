@@ -97,6 +97,7 @@ class PlanController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Plans list retrieved successfully',
+                'trail_days' => 15,
                 'data' => PlanResource::collection($plans),
             ], 200);
         } catch (\Exception $e) {

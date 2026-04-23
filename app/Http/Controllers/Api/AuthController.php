@@ -1045,6 +1045,16 @@ class AuthController extends Controller
     {
         try {
             $user = $request->user()->load('tenant');
+            
+            $trialEndDate = $user->created_at->copy()->addDays(15);
+            $remainingTrialDays = 0;
+            if (now()->lessThan($trialEndDate)) {
+                $remainingTrialDays = (int) now()->diffInDays($trialEndDate);
+                if ($remainingTrialDays == 0 && now()->isSameDay($trialEndDate)) {
+                    $remainingTrialDays = 1; // if it's identical day, count it as still having some time today
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'data'    => [
@@ -1059,6 +1069,7 @@ class AuthController extends Controller
                     'gstin'        => $user->tenant?->gstin,
                     'address'      => $user->tenant?->address,
                     'logo_url'     => $user->tenant?->logo_url,
+                    'remaining_trial_days' => $remainingTrialDays,
                 ],
             ]);
         } catch (\Exception $e) {

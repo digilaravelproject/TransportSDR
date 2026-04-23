@@ -148,11 +148,21 @@ class Subscription extends Model
      */
     public function calculateRenewalDates()
     {
-        $this->next_billing_date = now()->addDays($this->billing_cycle_days);
+        $user = $this->user ?? \App\Models\User::find($this->user_id);
+        
         if (!$this->start_date) {
-            $this->start_date = now();
+            $trialEndDate = $user ? $user->created_at->copy()->addDays(15) : null;
+            
+            if ($trialEndDate && now()->lessThan($trialEndDate)) {
+                $this->start_date = $trialEndDate;
+            } else {
+                $this->start_date = now();
+            }
         }
-        $this->end_date = now()->addDays($this->billing_cycle_days);
+        
+        $startDate = \Carbon\Carbon::parse($this->start_date);
+        $this->end_date = $startDate->copy()->addDays($this->billing_cycle_days);
+        $this->next_billing_date = $this->end_date;
     }
 
     /**
