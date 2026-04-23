@@ -11,24 +11,20 @@ class Shift extends Model
 
     protected $fillable = [
         'name',
-        'description',
         'start_time',
         'end_time',
         'type',
-        'days',
         'duration_hours',
         'is_active',
-        'max_drivers',
-        'hourly_rate',
         'notes',
+        'date',
     ];
 
     protected $casts = [
-        'days' => 'array',
         'is_active' => 'boolean',
         'start_time' => 'datetime:H:i',
         'end_time' => 'datetime:H:i',
-        'hourly_rate' => 'decimal:2',
+        'date' => 'date',
     ];
 
     /**
@@ -54,30 +50,12 @@ class Shift extends Model
 
     public function scopeSearchByName($query, $search)
     {
-        return $query->where('name', 'like', "%{$search}%")
-                     ->orWhere('description', 'like', "%{$search}%");
+        return $query->where('name', 'like', "%{$search}%");
     }
 
     public function scopeOrdered($query)
     {
         return $query->orderBy('start_time', 'asc');
-    }
-
-    /**
-     * Calculate duration in hours
-     */
-    public function calculateDuration()
-    {
-        $start = strtotime($this->start_time);
-        $end = strtotime($this->end_time);
-        
-        // Handle night shift (end time is next day)
-        if ($end < $start) {
-            $end = $end + (24 * 3600);
-        }
-        
-        $hours = ($end - $start) / 3600;
-        return $hours;
     }
 
     /**
@@ -102,36 +80,6 @@ class Shift extends Model
     public function getTimeRangeAttribute()
     {
         return $this->formatted_start_time . ' - ' . $this->formatted_end_time;
-    }
-
-    /**
-     * Get day names
-     */
-    public function getDayNames()
-    {
-        if (!$this->days) {
-            return [];
-        }
-
-        $dayMap = [
-            1 => 'Monday',
-            2 => 'Tuesday',
-            3 => 'Wednesday',
-            4 => 'Thursday',
-            5 => 'Friday',
-            6 => 'Saturday',
-            7 => 'Sunday',
-        ];
-
-        return array_map(fn($day) => $dayMap[$day] ?? null, $this->days);
-    }
-
-    /**
-     * Check if shift is available on a specific day
-     */
-    public function isAvailableOnDay($day)
-    {
-        return in_array($day, $this->days ?? []);
     }
 
     /**

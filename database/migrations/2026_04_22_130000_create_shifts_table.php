@@ -14,15 +14,16 @@ return new class extends Migration
         Schema::create('shifts', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
-            $table->text('description')->nullable();
+            // $table->text('description')->nullable(); // removed
             $table->time('start_time');
             $table->time('end_time');
             $table->enum('type', ['regular', 'overtime', 'night', 'custom'])->default('regular');
-            $table->json('days')->nullable(); // Days of week [1,2,3,4,5] = Mon-Fri
+            // $table->json('days')->nullable(); // removed
             $table->integer('duration_hours')->nullable(); // Calculated duration
             $table->boolean('is_active')->default(true);
-            $table->integer('max_drivers')->nullable(); // Max drivers allowed in this shift
-            $table->decimal('hourly_rate', 10, 2)->nullable();
+            // $table->integer('max_drivers')->nullable(); // removed
+            // $table->decimal('hourly_rate', 10, 2)->nullable(); // removed
+                        $table->date('date')->nullable(); // added
             $table->text('notes')->nullable();
             $table->timestamps();
             $table->softDeletes();

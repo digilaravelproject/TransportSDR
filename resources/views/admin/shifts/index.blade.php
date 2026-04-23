@@ -111,9 +111,7 @@
                         <th>Shift Name</th>
                         <th>Time</th>
                         <th>Type</th>
-                        <th>Duration</th>
-                        <th>Max Drivers</th>
-                        <th>Hourly Rate</th>
+                        <th>Date</th>
                         <th>Status</th>
                         <th>Action</th>
                     </tr>
@@ -124,7 +122,7 @@
                             <td>
                                 <div>
                                     <div class="font-weight-medium">{{ $shift->name }}</div>
-                                    <div class="text-muted font-size-sm">{{ $shift->description ? Str::limit($shift->description, 40) : 'No description' }}</div>
+                                    <div class="text-muted font-size-sm">Date: {{ $shift->date ? $shift->date->format('Y-m-d') : 'N/A' }}</div>
                                 </div>
                             </td>
                             <td>
@@ -141,21 +139,7 @@
                                     <span class="badge bg-info">Custom</span>
                                 @endif
                             </td>
-                            <td>{{ $shift->calculateDuration() }} hrs</td>
-                            <td>
-                                @if($shift->max_drivers)
-                                    <span class="badge bg-secondary">{{ $shift->max_drivers }}</span>
-                                @else
-                                    <span class="badge bg-light">Unlimited</span>
-                                @endif
-                            </td>
-                            <td>
-                                @if($shift->hourly_rate)
-                                    RS. {{ number_format($shift->hourly_rate, 2) }}
-                                @else
-                                    <span class="text-muted">-</span>
-                                @endif
-                            </td>
+                            <td>{{ $shift->date ? $shift->date->format('Y-m-d') : 'N/A' }}</td>
                             <td>
                                 @if($shift->is_active)
                                     <span class="badge bg-success">Active</span>

@@ -39,13 +39,7 @@ class ShiftController extends Controller {
                 'message' => 'Driver already assigned to this shift',
             ], 409);
         }
-        // Check max_drivers limit
-        if ($shift->max_drivers && $shift->drivers()->count() >= $shift->max_drivers) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Maximum drivers limit reached for this shift',
-            ], 422);
-        }
+        // Removed max_drivers check
         $shift->drivers()->attach($driverId);
         return response()->json([
             'success' => true,
@@ -92,10 +86,9 @@ class ShiftController extends Controller {
                 $query->where('type', $type);
             }
             
-            // Search by name or description
+            // Search by name only
             if ($search) {
-                $query->where('name', 'like', "%{$search}%")
-                      ->orWhere('description', 'like', "%{$search}%");
+                $query->where('name', 'like', "%{$search}%");
             }
             
             // Only active shifts
@@ -140,10 +133,9 @@ class ShiftController extends Controller {
                 $query->where('type', $type);
             }
             
-            // Search by name or description
+            // Search by name only
             if ($search) {
-                $query->where('name', 'like', "%{$search}%")
-                      ->orWhere('description', 'like', "%{$search}%");
+                $query->where('name', 'like', "%{$search}%");
             }
             
             // Only active shifts
@@ -196,16 +188,12 @@ class ShiftController extends Controller {
         try {
             $validated = $request->validate([
                 'name' => 'required|string|unique:shifts|max:255',
-                'description' => 'nullable|string',
                 'start_time' => 'required|date_format:H:i',
                 'end_time' => 'required|date_format:H:i',
                 'type' => 'required|in:regular,overtime,night,custom',
-                'days' => 'nullable|array',
-                'days.*' => 'integer|between:1,7',
                 'is_active' => 'boolean',
-                'max_drivers' => 'nullable|integer|min:1',
-                'hourly_rate' => 'nullable|numeric|min:0',
                 'notes' => 'nullable|string',
+                'date' => 'nullable|date',
             ]);
 
             $shift = Shift::create($validated);
@@ -240,16 +228,12 @@ class ShiftController extends Controller {
             
             $validated = $request->validate([
                 'name' => 'sometimes|string|unique:shifts,name,' . $id . '|max:255',
-                'description' => 'nullable|string',
                 'start_time' => 'sometimes|date_format:H:i',
                 'end_time' => 'sometimes|date_format:H:i',
                 'type' => 'sometimes|in:regular,overtime,night,custom',
-                'days' => 'nullable|array',
-                'days.*' => 'integer|between:1,7',
                 'is_active' => 'boolean',
-                'max_drivers' => 'nullable|integer|min:1',
-                'hourly_rate' => 'nullable|numeric|min:0',
                 'notes' => 'nullable|string',
+                'date' => 'nullable|date',
             ]);
 
             $shift->update($validated);

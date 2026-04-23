@@ -290,4 +290,11 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::put('{id}', [Api\ShiftController::class, 'update']);
             Route::delete('{id}', [Api\ShiftController::class, 'destroy']);
         });
+        // ── Route Management ──
+        Route::get('routes', [Api\RouteController::class, 'index']);
+        Route::post('routes', [Api\RouteController::class, 'store']);
+        Route::get('routes/search', [Api\RouteController::class, 'search']);
+        Route::get('routes/{id}', [Api\RouteController::class, 'show']);
+        Route::put('routes/{id}', [Api\RouteController::class, 'update']);
+        Route::post('routes/{id}/assign-vehicles', [Api\RouteController::class, 'assignVehicles']);
     });

@@ -5,7 +5,7 @@
 @section('content')
 <div class="mb-4">
     <h2>{{ $shift->name }}</h2>
-    <p class="text-muted">{{ $shift->description }}</p>
+    <p class="text-muted">Date: {{ $shift->date ? $shift->date->format('Y-m-d') : 'N/A' }}</p>
 </div>
 
 <div class="row">
@@ -51,41 +51,7 @@
 
                 <hr>
 
-                <h6 class="mb-3">Days of Week</h6>
-                <div class="row mb-3">
-                    @if($shift->days && count($shift->days) > 0)
-                        @foreach($shift->getDayNames() as $day)
-                            <div class="col-auto">
-                                <span class="badge bg-light text-dark">{{ $day }}</span>
-                            </div>
-                        @endforeach
-                    @else
-                        <div class="col-12">
-                            <p class="text-muted">All days</p>
-                        </div>
-                    @endif
-                </div>
-
-                <hr>
-
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6 class="text-muted">Max Drivers</h6>
-                        @if($shift->max_drivers)
-                            <p>{{ $shift->max_drivers }} drivers</p>
-                        @else
-                            <p class="text-muted">Unlimited</p>
-                        @endif
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="text-muted">Hourly Rate</h6>
-                        @if($shift->hourly_rate)
-                            <p>RS. {{ number_format($shift->hourly_rate, 2) }}</p>
-                        @else
-                            <p class="text-muted">Not set</p>
-                        @endif
-                    </div>
-                </div>
+                <!-- Removed days, max_drivers, hourly_rate section -->
 
                 <hr>
 
