@@ -169,7 +169,9 @@
                 <strong>Bill To:</strong><br>
                 <strong>{{ $trip->customer_name }}</strong><br>
                 {{ $trip->customer_contact }}<br>
-                @if ($trip->customer?->gstin)
+                @if (isset($trip->customer) && is_array($trip->customer) && isset($trip->customer['gstin']))
+                    <strong>GSTIN:</strong> {{ $trip->customer['gstin'] }}
+                @elseif (isset($trip->customer->gstin))
                     <strong>GSTIN:</strong> {{ $trip->customer->gstin }}
                 @endif
             </td>
@@ -256,10 +258,10 @@
                 <strong>Payment Status:</strong> {{ ucfirst($trip->payment_status) }}
             </td>
             <td>
-                @if ($trip->start_km && $trip->end_km)
+                @if (isset($trip->start_km) && isset($trip->end_km))
                     <strong>KM Details:</strong><br>
                     Start: {{ number_format($trip->start_km, 0) }} | End: {{ number_format($trip->end_km, 0) }}<br>
-                    Total: {{ number_format($trip->total_km, 0) }} km (Grade: {{ $trip->km_grade }})
+                    Total: {{ number_format($trip->total_km ?? 0, 0) }} km (Grade: {{ $trip->km_grade ?? 'N/A' }})
                 @endif
             </td>
         </tr>
