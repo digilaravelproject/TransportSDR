@@ -47,6 +47,11 @@ Route::middleware(['auth:sanctum', 'tenant'])
         Route::post('auth/logout', [Api\AuthController::class, 'logout']);
         Route::get('auth/me',      [Api\AuthController::class, 'me']);
         Route::post('auth/profile/update',   [Api\AuthController::class, 'updateProfile']);
+        // Shift Drivers Management
+        Route::get('drivers', [Api\ShiftController::class, 'driversList']);
+        Route::post('shifts/{shift}/add-driver', [Api\ShiftController::class, 'addDriver']);
+        Route::post('shifts/{shift}/remove-driver', [Api\ShiftController::class, 'removeDriver']);
+
         // MODULE 1 — Trip Management
         Route::apiResource('trips', Api\TripController::class);
         Route::prefix('trips/{trip}')->group(function () {
@@ -264,5 +269,17 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::post('{id}/cancel', [Api\SubscriptionController::class, 'cancel']);
             Route::post('{id}/pause', [Api\SubscriptionController::class, 'pause']);
             Route::post('{id}/resume', [Api\SubscriptionController::class, 'resume']);
+        });
+
+        // MODULE 11 — Shifts Management
+        Route::prefix('shifts')->group(function () {
+            Route::get('search', [Api\ShiftController::class, 'search']);
+            Route::get('stats', [Api\ShiftController::class, 'stats']);
+            Route::get('list', [Api\ShiftController::class, 'list']);
+            Route::get('/', [Api\ShiftController::class, 'index']);
+            Route::post('/', [Api\ShiftController::class, 'store']);
+            Route::get('{id}', [Api\ShiftController::class, 'show']);
+            Route::put('{id}', [Api\ShiftController::class, 'update']);
+            Route::delete('{id}', [Api\ShiftController::class, 'destroy']);
         });
     });

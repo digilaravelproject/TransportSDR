@@ -5,6 +5,7 @@ use App\Http\Controllers\AdminAuthController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\ManagePlansController;
 use App\Http\Controllers\Admin\ManageSubscriptionsController;
+use App\Http\Controllers\Admin\ManageShiftsController;
 Route::get('/', function () {
     return view('welcome');
 });
@@ -28,5 +29,9 @@ Route::prefix('admin')->group(function () {
         Route::post('/subscriptions/{subscription}/cancel', [ManageSubscriptionsController::class, 'cancel'])->name('admin.subscriptions.cancel');
         Route::post('/subscriptions/{subscription}/renew', [ManageSubscriptionsController::class, 'renew'])->name('admin.subscriptions.renew');
         Route::resource('/subscriptions', ManageSubscriptionsController::class, ['as' => 'admin']);
+        
+        Route::resource('/shifts', ManageShiftsController::class, ['as' => 'admin']);
+        Route::post('/shifts/{shift}/add-driver', [ManageShiftsController::class, 'addDriver'])->name('admin.shifts.add-driver');
+        Route::post('/shifts/{shift}/remove-driver', [ManageShiftsController::class, 'removeDriver'])->name('admin.shifts.remove-driver');
     });
 });

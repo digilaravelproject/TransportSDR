@@ -115,4 +115,12 @@ class Staff extends Model
             ->where('is_deducted', false)
             ->sum('amount');
     }
+
+    /**
+     * Shifts assigned to this driver
+     */
+    public function shifts()
+    {
+        return $this->belongsToMany(\App\Models\Shift::class, 'shift_driver', 'driver_id', 'shift_id');
+    }
 }
