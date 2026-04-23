@@ -46,6 +46,11 @@ class DocumentTemplate extends Model
         return $this->belongsTo(TemplateCategory::class, 'category_id');
     }
 
+    public function submissions()
+    {
+        return $this->hasMany(DocumentTemplateSubmission::class);
+    }
+
     public function getThumbnailUrlAttribute(): ?string
     {
         return $this->thumbnail ? asset("storage/{$this->thumbnail}") : null;
