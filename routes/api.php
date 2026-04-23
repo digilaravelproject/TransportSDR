@@ -6,6 +6,8 @@ use App\Http\Controllers\SuperAdmin;
 
 // ── Public ─────────────────────────────────────────────────────
 
+
+
 // Registration — 2 step
 Route::post('/auth/register/send-otp',   [Api\AuthController::class, 'registerSendOtp']);
 Route::post('/auth/register/verify',     [Api\AuthController::class, 'registerVerify']);
@@ -42,6 +44,12 @@ Route::middleware(['auth:sanctum', 'superadmin'])
 Route::middleware(['auth:sanctum', 'tenant'])
     ->prefix('v1')
     ->group(function () {
+
+        Route::prefix('document-templates')->group(function () {
+            Route::get('/categories',    [Api\DocumentTemplateController::class, 'categories']);
+            Route::get('/',              [Api\DocumentTemplateController::class, 'index']);
+            Route::get('/{documentTemplate}', [Api\DocumentTemplateController::class, 'show']);
+        });
 
         // Auth
         Route::post('auth/logout', [Api\AuthController::class, 'logout']);

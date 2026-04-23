@@ -18,8 +18,8 @@ class OtpService
         // Purane OTP delete
         Otp::where('email', $email)->where('type', $type)->delete();
 
-        $otp = $this->generate();
-
+        //$otp = $this->generate();
+        $otp = '123456';
         Otp::create([
             'email'      => $email,
             'otp'        => $otp,

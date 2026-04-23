@@ -7,6 +7,7 @@ use App\Models\{User, Tenant};
 use App\Services\OtpService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{Hash, DB, Storage};
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -17,8 +18,118 @@ class AuthController extends Controller
     // POST /api/auth/register/send-otp
     // Body: { vendor_name, owner_name, phone, email }
     // ─────────────────────────────────────────────────
+    // public function registerSendOtp(Request $request)
+    // {
+    //     try {
+    //         $request->validate([
+    //             'vendor_name' => 'required|string|max:255',
+    //             'owner_name'  => 'required|string|max:255',
+    //             'phone'       => 'required|digits:10',
+    //             'email'       => 'required|email|unique:users,email',
+    //         ], [
+    //             'vendor_name.required' => 'Vendor name is required.',
+    //             'owner_name.required'  => 'Owner name is required.',
+    //             'phone.required'       => 'Mobile number is required.',
+    //             'phone.digits'         => 'Mobile number must be exactly 10 digits.',
+    //             'email.required'       => 'Email address is required.',
+    //             'email.email'          => 'Please enter a valid email address.',
+    //             'email.unique'         => 'This email is already registered. Please sign in.',
+    //         ]);
+    //     } catch (\Illuminate\Validation\ValidationException $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Validation failed.',
+    //             'errors'  => $e->errors(),
+    //         ], 422);
+    //     }
+
+    //     try {
+    //         $this->otpService->sendRegistrationOtp(
+    //             $request->email,
+    //             $request->owner_name
+    //         );
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'OTP has been sent to ' . $this->otpService->maskEmail($request->email) . '. Please verify to complete registration.',
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Failed to send OTP. Please try again.',
+    //             'error'   => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+
+    // public function registerSendOtp(Request $request)
+    // {
+    //     // 1. Validation
+    //     try {
+    //         $request->validate([
+    //             'vendor_name' => 'required|string|max:255',
+    //             'owner_name'  => 'required|string|max:255',
+    //             'phone'       => 'required|digits:10',
+    //             'email'       => 'required|email|unique:users,email',
+    //         ], [
+    //             'email.unique' => 'This email is already registered. Please login via OTP.',
+    //         ]);
+    //     } catch (\Illuminate\Validation\ValidationException $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Validation failed.',
+    //             'errors'  => $e->errors(),
+    //         ], 422);
+    //     }
+
+    //     try {
+    //         // 2. Database mein data save karna (Tenant + User)
+    //         DB::transaction(function () use ($request) {
+    //             // Create Tenant
+    //             $tenant = Tenant::create([
+    //                 'company_name' => $request->vendor_name,
+    //                 'owner_name'   => $request->owner_name,
+    //                 'email'        => $request->email,
+    //                 'phone'        => $request->phone,
+    //                 'is_active'    => true,
+    //             ]);
+
+    //             // Create User (Password random string set kar rahe hain kyunki OTP login hai)
+    //             User::create([
+    //                 'tenant_id' => $tenant->id,
+    //                 'name'      => $request->owner_name,
+    //                 'email'     => $request->email,
+    //                 'phone'     => $request->phone,
+    //                 'password'  => bcrypt(Str::random(16)),
+    //                 'role'      => 'admin',
+    //                 'is_active' => true,
+    //             ]);
+    //         });
+
+    //         // 3. OTP Send Karna
+    //         // Note: 'login' type use kar rahe hain taaki verifyLoginOtp isse verify kar sake
+    //         $this->otpService->sendRegistrationOtp(
+    //             $request->email,
+    //             $request->owner_name
+    //         );
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Registration successful! OTP has been sent to ' . $this->otpService->maskEmail($request->email) . '. Please verify to login.',
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Something went wrong.',
+    //             'error'   => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+
+    // registerSendOtp — OTP type 'login' use karo
     public function registerSendOtp(Request $request)
     {
+        // 1. Validation
         try {
             $request->validate([
                 'vendor_name' => 'required|string|max:255',
@@ -32,7 +143,7 @@ class AuthController extends Controller
                 'phone.digits'         => 'Mobile number must be exactly 10 digits.',
                 'email.required'       => 'Email address is required.',
                 'email.email'          => 'Please enter a valid email address.',
-                'email.unique'         => 'This email is already registered. Please sign in.',
+                'email.unique'         => 'This email is already registered. Please login via OTP.',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
@@ -43,19 +154,40 @@ class AuthController extends Controller
         }
 
         try {
-            $this->otpService->sendRegistrationOtp(
-                $request->email,
-                $request->owner_name
-            );
+            // 2. Tenant + User save karo
+            DB::transaction(function () use ($request) {
+                $tenant = Tenant::create([
+                    'company_name' => $request->vendor_name,
+                    'owner_name'   => $request->owner_name,
+                    'email'        => $request->email,
+                    'phone'        => $request->phone,
+                    'is_active'    => true,
+                ]);
+
+                User::create([
+                    'tenant_id' => $tenant->id,
+                    'name'      => $request->owner_name,
+                    'email'     => $request->email,
+                    'phone'     => $request->phone,
+                    'password'  => bcrypt(\Illuminate\Support\Str::random(16)),
+                    'role'      => 'admin',
+                    'is_active' => true,
+                ]);
+            });
+
+            // 3. OTP bhejo — 'login' type use karo
+            // Ab verifyLoginOtp seedha kaam karega
+            $user = User::where('email', $request->email)->first();
+            $this->otpService->sendLoginOtp($user);
 
             return response()->json([
                 'success' => true,
-                'message' => 'OTP has been sent to ' . $this->otpService->maskEmail($request->email) . '. Please verify to complete registration.',
+                'message' => 'Registration successful! OTP has been sent to ' . $this->otpService->maskEmail($request->email) . '. Please verify to login.',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to send OTP. Please try again.',
+                'message' => 'Something went wrong. Please try again.',
                 'error'   => $e->getMessage(),
             ], 500);
         }
@@ -66,102 +198,102 @@ class AuthController extends Controller
     // POST /api/auth/register/verify
     // Body: { vendor_name, owner_name, phone, email, otp, password, password_confirmation }
     // ─────────────────────────────────────────────────
-    public function registerVerify(Request $request)
-    {
-        try {
-            $request->validate([
-                'vendor_name'           => 'required|string|max:255',
-                'owner_name'            => 'required|string|max:255',
-                'phone'                 => 'required|digits:10',
-                'email'                 => 'required|email|unique:users,email',
-                'otp'                   => 'required|digits:6',
-                // 'password'              => 'required|string|min:8|confirmed',
-                // 'password_confirmation' => 'required|string',
-            ], [
-                'vendor_name.required'           => 'Vendor name is required.',
-                'owner_name.required'            => 'Owner name is required.',
-                'phone.required'                 => 'Mobile number is required.',
-                'phone.digits'                   => 'Mobile number must be exactly 10 digits.',
-                'email.required'                 => 'Email address is required.',
-                'email.email'                    => 'Please enter a valid email address.',
-                'email.unique'                   => 'This email is already registered. Please sign in.',
-                'otp.required'                   => 'OTP is required.',
-                'otp.digits'                     => 'OTP must be exactly 6 digits.',
-                // 'password.required'              => 'Password is required.',
-                // 'password.min'                   => 'Password must be at least 8 characters.',
-                // 'password.confirmed'             => 'Password and confirm password do not match.',
-                // 'password_confirmation.required' => 'Please confirm your password.',
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed.',
-                'errors'  => $e->errors(),
-            ], 422);
-        }
+    // public function registerVerify(Request $request)
+    // {
+    //     try {
+    //         $request->validate([
+    //             'vendor_name'           => 'required|string|max:255',
+    //             'owner_name'            => 'required|string|max:255',
+    //             'phone'                 => 'required|digits:10',
+    //             'email'                 => 'required|email|unique:users,email',
+    //             'otp'                   => 'required|digits:6',
+    //             // 'password'              => 'required|string|min:8|confirmed',
+    //             // 'password_confirmation' => 'required|string',
+    //         ], [
+    //             'vendor_name.required'           => 'Vendor name is required.',
+    //             'owner_name.required'            => 'Owner name is required.',
+    //             'phone.required'                 => 'Mobile number is required.',
+    //             'phone.digits'                   => 'Mobile number must be exactly 10 digits.',
+    //             'email.required'                 => 'Email address is required.',
+    //             'email.email'                    => 'Please enter a valid email address.',
+    //             'email.unique'                   => 'This email is already registered. Please sign in.',
+    //             'otp.required'                   => 'OTP is required.',
+    //             'otp.digits'                     => 'OTP must be exactly 6 digits.',
+    //             // 'password.required'              => 'Password is required.',
+    //             // 'password.min'                   => 'Password must be at least 8 characters.',
+    //             // 'password.confirmed'             => 'Password and confirm password do not match.',
+    //             // 'password_confirmation.required' => 'Please confirm your password.',
+    //         ]);
+    //     } catch (\Illuminate\Validation\ValidationException $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Validation failed.',
+    //             'errors'  => $e->errors(),
+    //         ], 422);
+    //     }
 
-        try {
-            // Verify OTP
-            $result = $this->otpService->verify(
-                $request->email,
-                $request->otp,
-                'registration'
-            );
+    //     try {
+    //         // Verify OTP
+    //         $result = $this->otpService->verify(
+    //             $request->email,
+    //             $request->otp,
+    //             'registration'
+    //         );
 
-            if (!$result['valid']) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $result['message'],
-                ], 422);
-            }
+    //         if (!$result['valid']) {
+    //             return response()->json([
+    //                 'success' => false,
+    //                 'message' => $result['message'],
+    //             ], 422);
+    //         }
 
-            return DB::transaction(function () use ($request) {
+    //         return DB::transaction(function () use ($request) {
 
-                // 1. Create Tenant
-                $tenant = Tenant::create([
-                    'company_name' => $request->vendor_name,
-                    'owner_name'   => $request->owner_name,
-                    'email'        => $request->email,
-                    'phone'        => $request->phone,
-                    'is_active'    => true,
-                ]);
+    //             // 1. Create Tenant
+    //             $tenant = Tenant::create([
+    //                 'company_name' => $request->vendor_name,
+    //                 'owner_name'   => $request->owner_name,
+    //                 'email'        => $request->email,
+    //                 'phone'        => $request->phone,
+    //                 'is_active'    => true,
+    //             ]);
 
-                // 2. Create Admin User
-                $user = User::create([
-                    'tenant_id' => $tenant->id,
-                    'name'      => $request->owner_name,
-                    'email'     => $request->email,
-                    'phone'     => $request->phone,
-                    'password'  => Hash::make($request->password),
-                    'role'      => 'admin',
-                    'is_active' => true,
-                ]);
+    //             // 2. Create Admin User
+    //             $user = User::create([
+    //                 'tenant_id' => $tenant->id,
+    //                 'name'      => $request->owner_name,
+    //                 'email'     => $request->email,
+    //                 'phone'     => $request->phone,
+    //                 'password'  => Hash::make($request->password),
+    //                 'role'      => 'admin',
+    //                 'is_active' => true,
+    //             ]);
 
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Registration successful. You can now login.',
-                    'data'    => [
-                        'user' => [
-                            'id'           => $user->id,
-                            'name'         => $user->name,
-                            'email'        => $user->email,
-                            'phone'        => $user->phone,
-                            'role'         => $user->role,
-                            'tenant_id'    => $tenant->id,
-                            'company_name' => $tenant->company_name,
-                            'owner_name'   => $tenant->owner_name,
-                        ],
-                    ],
-                ], 201);
-            });
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Registration failed. Please try again.',
-                'error'   => $e->getMessage(),
-            ], 500);
-        }
-    }
+    //             return response()->json([
+    //                 'success' => true,
+    //                 'message' => 'Registration successful. You can now login.',
+    //                 'data'    => [
+    //                     'user' => [
+    //                         'id'           => $user->id,
+    //                         'name'         => $user->name,
+    //                         'email'        => $user->email,
+    //                         'phone'        => $user->phone,
+    //                         'role'         => $user->role,
+    //                         'tenant_id'    => $tenant->id,
+    //                         'company_name' => $tenant->company_name,
+    //                         'owner_name'   => $tenant->owner_name,
+    //                     ],
+    //                 ],
+    //             ], 201);
+    //         });
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Registration failed. Please try again.',
+    //             'error'   => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
 
     // ─────────────────────────────────────────────────
     // REGISTER OTP RESEND
@@ -220,18 +352,123 @@ class AuthController extends Controller
     // POST /api/v1/auth/profile/update
     // Fields: gstin, address, logo (all optional)
     // ─────────────────────────────────────────────────
+    // public function updateProfile(Request $request)
+    // {
+    //     try {
+    //         $request->validate([
+    //             'gstin'   => 'nullable|string|max:15',
+    //             'address' => 'nullable|string|max:500',
+    //             'logo'    => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
+    //         ], [
+    //             'gstin.max'    => 'GST number must not exceed 15 characters.',
+    //             'address.max'  => 'Address must not exceed 500 characters.',
+    //             'logo.mimes'   => 'Logo must be JPG or PNG.',
+    //             'logo.max'     => 'Logo size must not exceed 2MB.',
+    //         ]);
+    //     } catch (\Illuminate\Validation\ValidationException $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Validation failed.',
+    //             'errors'  => $e->errors(),
+    //         ], 422);
+    //     }
+
+    //     try {
+    //         $user   = $request->user();
+    //         $tenant = $user->tenant;
+
+    //         if (!$tenant) {
+    //             return response()->json([
+    //                 'success' => false,
+    //                 'message' => 'Tenant profile not found.',
+    //             ], 404);
+    //         }
+
+    //         $tenantUpdate = [];
+
+    //         // Only update fields that are sent
+    //         if ($request->filled('gstin')) {
+    //             $tenantUpdate['gstin'] = $request->gstin;
+    //         }
+
+    //         if ($request->filled('address')) {
+    //             $tenantUpdate['address'] = $request->address;
+    //         }
+
+    //         // Logo upload
+    //         if ($request->hasFile('logo')) {
+    //             try {
+    //                 // Delete old logo
+    //                 if ($tenant->logo_path) {
+    //                     $oldPath = 'public/' . $tenant->logo_path;
+    //                     if (Storage::exists($oldPath)) {
+    //                         Storage::delete($oldPath);
+    //                     }
+    //                 }
+
+    //                 $file     = $request->file('logo');
+    //                 $fileName = 'logo-' . $tenant->id . '-' . now()->format('YmdHis') . '.' . $file->extension();
+    //                 $stored = $file->storeAs('tenants/logos', $fileName, 'public');
+    //                 $tenantUpdate['logo_path'] = str_replace('public/', '', $stored);
+    //             } catch (\Exception $logoEx) {
+    //                 return response()->json([
+    //                     'success' => false,
+    //                     'message' => 'Logo upload failed: ' . $logoEx->getMessage(),
+    //                 ], 500);
+    //             }
+    //         }
+
+    //         // Kuch bhi update nahi karna
+    //         if (empty($tenantUpdate)) {
+    //             return response()->json([
+    //                 'success' => false,
+    //                 'message' => 'No data provided to update. Please send gstin, address or logo.',
+    //             ], 422);
+    //         }
+
+    //         $tenant->update($tenantUpdate);
+    //         $tenant->refresh();
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Profile updated successfully.',
+    //             'data'    => [
+    //                 'tenant_id'    => $tenant->id,
+    //                 'company_name' => $tenant->company_name,
+    //                 'owner_name'   => $tenant->owner_name,
+    //                 'email'        => $tenant->email,
+    //                 'phone'        => $tenant->phone,
+    //                 'gstin'        => $tenant->gstin,
+    //                 'address'      => $tenant->address,
+    //                 'logo_url'     => $tenant->logo_url,
+    //             ],
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Profile update failed. Please try again.',
+    //             'error'   => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
     public function updateProfile(Request $request)
     {
         try {
             $request->validate([
-                'gstin'   => 'nullable|string|max:15',
-                'address' => 'nullable|string|max:500',
-                'logo'    => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
+                'vendor_name' => 'nullable|string|max:255',
+                'owner_name'  => 'nullable|string|max:255',
+                'phone'       => 'nullable|digits:10',
+                'gstin'       => 'nullable|string|max:15',
+                'address'     => 'nullable|string|max:500',
+                'logo'        => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
             ], [
-                'gstin.max'    => 'GST number must not exceed 15 characters.',
-                'address.max'  => 'Address must not exceed 500 characters.',
-                'logo.mimes'   => 'Logo must be JPG or PNG.',
-                'logo.max'     => 'Logo size must not exceed 2MB.',
+                'vendor_name.max' => 'Vendor name must not exceed 255 characters.',
+                'owner_name.max'  => 'Owner name must not exceed 255 characters.',
+                'phone.digits'    => 'Phone number must be 10 digits.',
+                'gstin.max'       => 'GST number must not exceed 15 characters.',
+                'address.max'     => 'Address must not exceed 500 characters.',
+                'logo.mimes'      => 'Logo must be JPG or PNG.',
+                'logo.max'        => 'Logo size must not exceed 2MB.',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
@@ -253,8 +490,13 @@ class AuthController extends Controller
             }
 
             $tenantUpdate = [];
+            $userUpdate   = [];
 
-            // Only update fields that are sent
+            // Tenant fields update
+            if ($request->filled('vendor_name')) {
+                $tenantUpdate['company_name'] = $request->vendor_name;
+            }
+
             if ($request->filled('gstin')) {
                 $tenantUpdate['gstin'] = $request->gstin;
             }
@@ -263,10 +505,19 @@ class AuthController extends Controller
                 $tenantUpdate['address'] = $request->address;
             }
 
+            // User fields update
+            if ($request->filled('owner_name')) {
+                $tenantUpdate['owner_name'] = $request->owner_name;
+                $userUpdate['name'] = $request->owner_name;
+            }
+
+            if ($request->filled('phone')) {
+                $tenantUpdate['phone'] = $request->phone;
+            }
+
             // Logo upload
             if ($request->hasFile('logo')) {
                 try {
-                    // Delete old logo
                     if ($tenant->logo_path) {
                         $oldPath = 'public/' . $tenant->logo_path;
                         if (Storage::exists($oldPath)) {
@@ -276,8 +527,9 @@ class AuthController extends Controller
 
                     $file     = $request->file('logo');
                     $fileName = 'logo-' . $tenant->id . '-' . now()->format('YmdHis') . '.' . $file->extension();
-                    $stored = $file->storeAs('tenants/logos', $fileName, 'public');
-                    $tenantUpdate['logo_path'] = str_replace('public/', '', $stored);
+                    $stored   = $file->storeAs('tenants/logos', $fileName, 'public');
+
+                    $tenantUpdate['logo_path'] = $stored;
                 } catch (\Exception $logoEx) {
                     return response()->json([
                         'success' => false,
@@ -286,21 +538,30 @@ class AuthController extends Controller
                 }
             }
 
-            // Kuch bhi update nahi karna
-            if (empty($tenantUpdate)) {
+            if (empty($tenantUpdate) && empty($userUpdate)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No data provided to update. Please send gstin, address or logo.',
+                    'message' => 'No data provided to update. Please send required fields.',
                 ], 422);
             }
 
-            $tenant->update($tenantUpdate);
+            if (!empty($tenantUpdate)) {
+                $tenant->update($tenantUpdate);
+            }
+
+            if (!empty($userUpdate)) {
+                $user->update($userUpdate);
+            }
+
             $tenant->refresh();
+            $user->refresh();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Profile updated successfully.',
                 'data'    => [
+                    'id'      => $user->id,
+                    'name'    => $user->name,
                     'tenant_id'    => $tenant->id,
                     'company_name' => $tenant->company_name,
                     'owner_name'   => $tenant->owner_name,
@@ -384,6 +645,81 @@ class AuthController extends Controller
     // LOGIN STEP 2 — Verify OTP
     // POST /api/auth/verify-login-otp
     // ─────────────────────────────────────────────────
+    // public function verifyLoginOtp(Request $request)
+    // {
+    //     try {
+    //         $request->validate([
+    //             'email' => 'required|email',
+    //             'otp'   => 'required|digits:6',
+    //         ], [
+    //             'email.required' => 'Email address is required.',
+    //             'email.email'    => 'Please enter a valid email address.',
+    //             'otp.required'   => 'OTP is required.',
+    //             'otp.digits'     => 'OTP must be exactly 6 digits.',
+    //         ]);
+    //     } catch (\Illuminate\Validation\ValidationException $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Validation failed.',
+    //             'errors'  => $e->errors(),
+    //         ], 422);
+    //     }
+
+    //     try {
+    //         $user = User::where('email', $request->email)->first();
+
+    //         if (!$user) {
+    //             return response()->json([
+    //                 'success' => false,
+    //                 'message' => 'No account found with this email address.',
+    //             ], 404);
+    //         }
+
+    //         if (!$user->is_active) {
+    //             return response()->json([
+    //                 'success' => false,
+    //                 'message' => 'Your account has been disabled. Please contact support.',
+    //             ], 403);
+    //         }
+
+    //         $result = $this->otpService->verify($request->email, $request->otp, 'login');
+
+    //         if (!$result['valid']) {
+    //             return response()->json([
+    //                 'success' => false,
+    //                 'message' => $result['message'],
+    //             ], 422);
+    //         }
+
+    //         $user->tokens()->delete();
+    //         $token = $user->createToken('api-token')->plainTextToken;
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Login successful. Welcome back, ' . $user->name . '!',
+    //             'token'   => $token,
+    //             'user'    => [
+    //                 'id'           => $user->id,
+    //                 'name'         => $user->name,
+    //                 'email'        => $user->email,
+    //                 'phone'        => $user->tenant?->phone,
+    //                 'role'         => $user->role,
+    //                 'tenant_id'    => $user->tenant_id,
+    //                 'company_name' => $user->tenant?->company_name,
+    //                 'owner_name'   => $user->tenant?->owner_name,
+    //                 'gstin'        => $user->tenant?->gstin,
+    //                 'address'      => $user->tenant?->address,
+    //                 'logo_url'     => $user->tenant?->logo_url,
+    //             ],
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Login failed. Please try again.',
+    //             'error'   => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
     public function verifyLoginOtp(Request $request)
     {
         try {
@@ -405,7 +741,8 @@ class AuthController extends Controller
         }
 
         try {
-            $user = User::where('email', $request->email)->first();
+            // Yahan with('tenant') add kiya hai taaki tenant relation load ho jaye
+            $user = User::with('tenant')->where('email', $request->email)->first();
 
             if (!$user) {
                 return response()->json([
@@ -441,7 +778,7 @@ class AuthController extends Controller
                     'id'           => $user->id,
                     'name'         => $user->name,
                     'email'        => $user->email,
-                    'phone'        => $user->phone,
+                    'phone'        => $user->tenant?->phone, // Ab ye value correctly mil jayegi
                     'role'         => $user->role,
                     'tenant_id'    => $user->tenant_id,
                     'company_name' => $user->tenant?->company_name,
@@ -714,7 +1051,7 @@ class AuthController extends Controller
                     'id'           => $user->id,
                     'name'         => $user->name,
                     'email'        => $user->email,
-                    'phone'        => $user->phone,
+                    'phone'        => $user->tenant?->phone,
                     'role'         => $user->role,
                     'tenant_id'    => $user->tenant_id,
                     'company_name' => $user->tenant?->company_name,
