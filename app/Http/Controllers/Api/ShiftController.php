@@ -67,34 +67,44 @@ class ShiftController extends Controller {
         try {
     
             $request->validate([
-                'driver_id' => 'required|exists:staff,id',
+                'driver_id' => 'required|array',
+                'driver_id.*' => 'exists:staff,id',
             ]);
     
             $shift = Shift::findOrFail($shiftId);
     
-            $driverId = $request->input('driver_id');
+            $driverIds = $request->input('driver_id');
     
-            // Check if already assigned
-            if ($shift->drivers()->where('staff.id', $driverId)->exists()) {
+            // Get already assigned drivers
+            $existingDriverIds = $shift->drivers()
+                ->whereIn('staff.id', $driverIds)
+                ->pluck('staff.id')
+                ->toArray();
+    
+            // Filter only new drivers
+            $newDriverIds = array_diff($driverIds, $existingDriverIds);
+    
+            if (empty($newDriverIds)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Driver already assigned to this shift',
+                    'message' => 'All selected drivers are already assigned to this shift',
                 ], 409);
             }
     
-            // Safe attach (no duplicate error)
-            $shift->drivers()->syncWithoutDetaching([$driverId]);
+            // Attach only new drivers
+            $shift->drivers()->syncWithoutDetaching($newDriverIds);
     
             return response()->json([
                 'success' => true,
-                'message' => 'Driver added to shift successfully',
+                'message' => 'Drivers added to shift successfully',
+                'assigned_driver_ids' => array_values($newDriverIds),
             ], 200);
     
         } catch (\Exception $e) {
     
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(), // temporarily show real error
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
