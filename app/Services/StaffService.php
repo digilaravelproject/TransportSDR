@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\{Staff, StaffAttendance, StaffSalary, StaffAdvance, StaffDaLog, Trip};
+use App\Models\{Staff, StaffAttendance, StaffSalary, StaffAdvance, StaffDaLog, Trip, StaffDocument};
 use Illuminate\Support\Facades\{DB, File, Storage};
 use Carbon\Carbon;
 
@@ -22,15 +22,29 @@ class StaffService
     }
 
     // ── Mark Attendance ───────────────────────────────
+    // public function markAttendance(Staff $staff, array $data): StaffAttendance
+    // {
+    //     return StaffAttendance::updateOrCreate(
+    //         [
+    //             'staff_id'  => $staff->id,
+    //             'tenant_id' => $staff->tenant_id,
+    //             'date'      => $data['date'],
+    //         ],
+    //         $data
+    //     );
+    // }
+    // Mark Attendance method me trip_purpose add karein
     public function markAttendance(Staff $staff, array $data): StaffAttendance
     {
         return StaffAttendance::updateOrCreate(
+            ['staff_id' => $staff->id, 'date' => $data['date']],
             [
-                'staff_id'  => $staff->id,
-                'tenant_id' => $staff->tenant_id,
-                'date'      => $data['date'],
-            ],
-            $data
+                'trip_purpose' => $data['trip_purpose'] ?? null,
+                'status' => $data['status'],
+                'check_in' => $data['check_in'],
+                'check_out' => $data['check_out'],
+                'notes' => $data['notes'] ?? null
+            ]
         );
     }
 
@@ -177,5 +191,130 @@ class StaffService
             'staff_id'      => $staff->id,
             'document_path' => $path,
         ]));
+    }
+
+
+
+    public function storeWithDocuments(array $data, $request): Staff
+    {
+        return DB::transaction(function () use ($data, $request) {
+            // 1. Pehle staff ki basic details save karo
+            $staff = Staff::create($data);
+
+            // 2. Aadhar Card Upload
+            if ($request->hasFile('aadhar_file')) {
+                $this->saveDocumentRecord($staff, 'aadhar', $data['aadhar_number'] ?? null, null, $request->file('aadhar_file'));
+            }
+
+            // 3. PAN Card Upload
+            if ($request->hasFile('pan_file')) {
+                $this->saveDocumentRecord($staff, 'pan', $data['pan_number'] ?? null, null, $request->file('pan_file'));
+            }
+
+            // 4. Driving License Upload
+            // if ($request->hasFile('dl_file')) {
+            //     $this->saveDocumentRecord($staff, 'driving_license', $data['dl_number'] ?? null, $data['dl_expiry'] ?? null, $request->file('dl_file'));
+            // }
+            if ($request->hasFile('dl_file')) {
+                $this->saveDocumentRecord($staff, 'license', $data['dl_number'] ?? null, $data['dl_expiry'] ?? null, $request->file('dl_file'));
+            }
+
+            // 5. Badge Upload
+            if ($request->hasFile('badge_file')) {
+                $this->saveDocumentRecord($staff, 'badge', $data['badge_number'] ?? null, $data['badge_expiry'] ?? null, $request->file('badge_file'));
+            }
+
+            // 6. Bank Passbook Upload
+            if ($request->hasFile('passbook_file')) {
+                $this->saveDocumentRecord($staff, 'bank_passbook', null, null, $request->file('passbook_file'));
+            }
+
+            // 7. Passport Size Photo Upload
+            if ($request->hasFile('photo_file')) {
+                $this->saveDocumentRecord($staff, 'photo', null, null, $request->file('photo_file'));
+            }
+
+            return $staff->load('documents');
+        });
+    }
+
+    // Helper method for saving documents
+    private function saveDocumentRecord(Staff $staff, string $type, ?string $number, ?string $expiry, $file)
+    {
+        $fileName = "staff-{$staff->id}-{$type}-" . time() . '.' . $file->extension();
+        $dir      = "tenants/{$staff->tenant_id}/staff-docs/{$staff->id}";
+        $path     = $file->storeAs($dir, $fileName, 'public');
+
+        StaffDocument::create([
+            'tenant_id'       => $staff->tenant_id,
+            'staff_id'        => $staff->id,
+            'document_type'   => $type,
+            'document_number' => $number,
+            'expiry_date'     => $expiry,
+            'document_path'   => $path,
+            'created_by'      => auth()->id(),
+        ]);
+    }
+
+    public function updateWithDocuments(Staff $staff, array $data, $request): Staff
+    {
+        return DB::transaction(function () use ($staff, $data, $request) {
+            // 1. Update basic details
+            $staff->update($data);
+
+            // 2. Aadhar Card Upload
+            if ($request->hasFile('aadhar_file')) {
+                $this->saveOrUpdateDocument($staff, 'aadhar', $data['aadhar_number'] ?? null, null, $request->file('aadhar_file'));
+            }
+
+            // 3. PAN Card Upload
+            if ($request->hasFile('pan_file')) {
+                $this->saveOrUpdateDocument($staff, 'pan', $data['pan_number'] ?? null, null, $request->file('pan_file'));
+            }
+
+            // 4. Driving License Upload
+            if ($request->hasFile('dl_file')) {
+                $this->saveOrUpdateDocument($staff, 'license', $data['dl_number'] ?? null, $data['dl_expiry'] ?? null, $request->file('dl_file'));
+            }
+
+            // 5. Badge Upload
+            if ($request->hasFile('badge_file')) {
+                $this->saveOrUpdateDocument($staff, 'badge', $data['badge_number'] ?? null, $data['badge_expiry'] ?? null, $request->file('badge_file'));
+            }
+
+            // 6. Bank Passbook
+            if ($request->hasFile('passbook_file')) {
+                $this->saveOrUpdateDocument($staff, 'bank_passbook', null, null, $request->file('passbook_file'));
+            }
+
+            // 7. Photo
+            if ($request->hasFile('photo_file')) {
+                $this->saveOrUpdateDocument($staff, 'photo', null, null, $request->file('photo_file'));
+            }
+
+            return $staff->fresh('documents');
+        });
+    }
+
+    // Yeh naya helper updateOrCreate use karta hai, taaki purana document update ho jaye agar wapas upload ho toh
+    private function saveOrUpdateDocument(Staff $staff, string $type, ?string $number, ?string $expiry, $file)
+    {
+        $fileName = "staff-{$staff->id}-{$type}-" . time() . '.' . $file->extension();
+        $dir      = "tenants/{$staff->tenant_id}/staff-docs/{$staff->id}";
+        $path     = $file->storeAs($dir, $fileName, 'public');
+
+        \App\Models\StaffDocument::updateOrCreate(
+            [
+                'tenant_id'     => $staff->tenant_id,
+                'staff_id'      => $staff->id,
+                'document_type' => $type, // Pehle check karega is type ka document hai ya nahi
+            ],
+            [
+                'document_number' => $number,
+                'expiry_date'     => $expiry,
+                'document_path'   => $path,
+                'created_by'      => auth()->id(),
+            ]
+        );
     }
 }

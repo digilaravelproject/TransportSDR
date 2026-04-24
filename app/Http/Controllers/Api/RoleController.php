@@ -166,4 +166,9 @@ class RoleController extends Controller
             abort(403, 'You do not have permission for this action.');
         }
     }
+    public function indexrole()
+    {
+        $roles = RoleModule::where('is_active', true)->get(['id', 'name']);
+        return response()->json(['success' => true, 'data' => $roles]);
+    }
 }

@@ -123,4 +123,8 @@ class Staff extends Model
     {
         return $this->belongsToMany(\App\Models\Shift::class, 'shift_driver', 'driver_id', 'shift_id');
     }
+    public function role()
+    {
+        return $this->belongsTo(\App\Models\RoleModule::class, 'staff_type');
+    }
 }
