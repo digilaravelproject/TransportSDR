@@ -302,4 +302,10 @@ Route::middleware(['auth:sanctum', 'tenant'])
         Route::get('routes/{id}', [Api\RouteController::class, 'show']);
         Route::put('routes/{id}', [Api\RouteController::class, 'update']);
         Route::post('routes/{id}/assign-vehicles', [Api\RouteController::class, 'assignVehicles']);
+
+        // Staff Attendance
+        Route::get('attendance', [Api\AttendanceController::class, 'index']);
+        Route::post('attendance', [Api\AttendanceController::class, 'store']);
+        Route::get('attendance/staff/{staff}', [Api\AttendanceController::class, 'staffRecords']);
+        Route::get('attendance/search', [Api\AttendanceController::class, 'search']);
     });

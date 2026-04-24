@@ -158,6 +158,14 @@ class ShiftController extends Controller {
             
             $shifts = $query->ordered()->paginate($limit);
             
+            if ($shifts->isNotEmpty()) {
+                foreach ($shifts as $shift) {
+                    $shift->drivers_count = $shift->drivers()
+                        ->withoutGlobalScopes()
+                        ->count();
+                }
+            }
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Shifts retrieved successfully',
@@ -223,10 +231,12 @@ class ShiftController extends Controller {
     /**
      * Get single shift by ID
      */
-    public function show($id)
+    public function show_old($id)
     {
         try {
             $shift = Shift::with('drivers')->withCount('drivers')->findOrFail($id);
+            
+            // display driver count and driver details
             
             return response()->json([
                 'success' => true,
@@ -234,6 +244,38 @@ class ShiftController extends Controller {
                 'data' => new ShiftResource($shift),
             ], 200);
         } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Shift not found',
+                'error' => $e->getMessage(),
+            ], 404);
+        }
+    }
+    
+    public function show($id)
+    {
+        try {
+    
+            $shift = Shift::with([
+                    'drivers' => function ($q) {
+                        $q->withoutGlobalScopes()->withTrashed();
+                    }
+                ])
+                ->findOrFail($id);
+    
+            // Manually calculate drivers count (safe and accurate)
+            $shift->drivers_count = \DB::table('shift_driver')
+                ->where('shift_id', $shift->id)
+                ->count();
+    
+            return response()->json([
+                'success' => true,
+                'message' => 'Shift retrieved successfully',
+                'data' => new ShiftResource($shift),
+            ], 200);
+    
+        } catch (\Exception $e) {
+    
             return response()->json([
                 'success' => false,
                 'message' => 'Shift not found',

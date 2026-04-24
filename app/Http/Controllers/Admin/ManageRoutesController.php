@@ -63,6 +63,44 @@ class ManageRoutesController extends Controller
             'schedules.*.days.*' => 'string',
         ]);
 
+        // Support legacy form fields (origin/destination/stops) by constructing `points`
+        if (!isset($validated['points']) || empty($validated['points'])) {
+            $points = [];
+            if ($request->filled('origin')) {
+                $points[] = [
+                    'type' => 'start',
+                    'name' => $request->input('origin'),
+                    'lat' => $request->input('origin_lat'),
+                    'lng' => $request->input('origin_lng'),
+                    'order' => 0,
+                ];
+            }
+
+            $stops = $request->input('stops', []);
+            $order = 1;
+            foreach ($stops as $stop) {
+                $points[] = [
+                    'type' => 'stop',
+                    'name' => is_array($stop) ? ($stop['name'] ?? $stop) : $stop,
+                    'lat' => is_array($stop) ? ($stop['lat'] ?? null) : null,
+                    'lng' => is_array($stop) ? ($stop['lng'] ?? null) : null,
+                    'order' => $order++,
+                ];
+            }
+
+            if ($request->filled('destination')) {
+                $points[] = [
+                    'type' => 'end',
+                    'name' => $request->input('destination'),
+                    'lat' => $request->input('destination_lat'),
+                    'lng' => $request->input('destination_lng'),
+                    'order' => $order,
+                ];
+            }
+
+            $validated['points'] = $points;
+        }
+
         Route::create($validated);
 
         return redirect()->route('admin.routes.index')
@@ -77,7 +115,25 @@ class ManageRoutesController extends Controller
         $route->load('vehicles');
         // Fetch active/available vehicles to be assigned
         $availableVehicles = Vehicle::available()->get();
-        return view('admin.routes.show', compact('route', 'availableVehicles'));
+        // Prepare legacy variables for views that expect origin/destination/stops
+        $origin = null;
+        $destination = null;
+        $stops = [];
+
+        if (!empty($route->points) && is_array($route->points)) {
+            $points = collect($route->points)->sortBy('order')->values();
+            if ($points->count() > 0) {
+                $first = $points->first();
+                $last = $points->last();
+                $origin = $first['name'] ?? null;
+                $destination = $last['name'] ?? null;
+                if ($points->count() > 2) {
+                    $stops = $points->slice(1, $points->count() - 2)->values()->all();
+                }
+            }
+        }
+
+        return view('admin.routes.show', compact('route', 'availableVehicles', 'origin', 'destination', 'stops'));
     }
 
     /**
@@ -85,7 +141,23 @@ class ManageRoutesController extends Controller
      */
     public function edit(Route $route)
     {
-        return view('admin.routes.edit', compact('route'));
+        // Prepare legacy variables for the edit form
+        $origin = null;
+        $destination = null;
+        $stops = [];
+
+        if (!empty($route->points) && is_array($route->points)) {
+            $points = collect($route->points)->sortBy('order')->values();
+            if ($points->count() > 0) {
+                $origin = $points->first()['name'] ?? null;
+                $destination = $points->last()['name'] ?? null;
+                if ($points->count() > 2) {
+                    $stops = $points->slice(1, $points->count() - 2)->values()->all();
+                }
+            }
+        }
+
+        return view('admin.routes.edit', compact('route', 'origin', 'destination', 'stops'));
     }
 
     /**
@@ -103,6 +175,44 @@ class ManageRoutesController extends Controller
             'stops' => 'nullable|array',
             'stops.*' => 'string|max:255',
         ]);
+
+        // Support legacy origin/destination/stops by building `points` if not provided
+        if (!isset($validated['points']) || empty($validated['points'])) {
+            $points = [];
+            if ($request->filled('origin')) {
+                $points[] = [
+                    'type' => 'start',
+                    'name' => $request->input('origin'),
+                    'lat' => $request->input('origin_lat'),
+                    'lng' => $request->input('origin_lng'),
+                    'order' => 0,
+                ];
+            }
+
+            $stops = $request->input('stops', []);
+            $order = 1;
+            foreach ($stops as $stop) {
+                $points[] = [
+                    'type' => 'stop',
+                    'name' => is_array($stop) ? ($stop['name'] ?? $stop) : $stop,
+                    'lat' => is_array($stop) ? ($stop['lat'] ?? null) : null,
+                    'lng' => is_array($stop) ? ($stop['lng'] ?? null) : null,
+                    'order' => $order++,
+                ];
+            }
+
+            if ($request->filled('destination')) {
+                $points[] = [
+                    'type' => 'end',
+                    'name' => $request->input('destination'),
+                    'lat' => $request->input('destination_lat'),
+                    'lng' => $request->input('destination_lng'),
+                    'order' => $order,
+                ];
+            }
+
+            $validated['points'] = $points;
+        }
 
         $route->update($validated);
 
