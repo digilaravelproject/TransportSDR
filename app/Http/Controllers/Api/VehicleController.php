@@ -7,6 +7,7 @@ use App\Models\{Vehicle, VehicleFuelLog, VehicleMaintenanceLog, VehicleDocument,
 use App\Http\Resources\VehicleResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{DB, File, Storage};
+use Carbon\Carbon;
 
 class VehicleController extends Controller
 {
@@ -64,33 +65,41 @@ class VehicleController extends Controller
     {
         try {
             $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
+            // Date to check availability for (defaults to today)
+            $checkDate = $request->date ? Carbon::parse($request->date)->toDateString() : now()->toDateString();
 
             $vehicles = Vehicle::withCount(['trips'])
 
-                // Exclude vehicles already assigned to this route
+                // Exclude vehicles already assigned to this route (pivot)
                 ->whereNotIn('id', function ($query) use ($route_id) {
                     $query->select('vehicle_id')
                         ->from('route_vehicle')
                         ->where('route_id', $route_id);
                 })
 
-                // Optional filters (same as your index)
-                ->when($request->type,
-                    fn($q, $v) => $q->where('type', $v)
-                )
+                // Exclude vehicles that have a Trip overlapping the check date
+                ->whereNotIn('id', function ($query) use ($checkDate) {
+                    $query->select('vehicle_id')
+                        ->from('trips')
+                        ->where(function ($q) use ($checkDate) {
+                            $q->whereDate('trip_date', '<=', $checkDate)
+                              ->where(function ($q2) use ($checkDate) {
+                                  $q2->whereDate('return_date', '>=', $checkDate)
+                                     ->orWhereNull('return_date');
+                              });
+                        })
+                        ->where('status', '!=', 'cancelled');
+                })
 
-                ->when($request->is_available,
-                    fn($q, $v) => $q->where('is_available', (bool)$v)
-                )
-
-                ->when($request->search,
-                    fn($q, $v) => $q->where(function ($q) use ($v) {
-                        $q->where('registration_number', 'like', "%{$v}%")
-                        ->orWhere('type',  'like', "%{$v}%")
-                        ->orWhere('make',  'like', "%{$v}%")
+                // Optional filters (same as index)
+                ->when($request->type, fn($q, $v) => $q->where('type', $v))
+                ->when($request->is_available, fn($q, $v) => $q->where('is_available', (bool)$v))
+                ->when($request->search, fn($q, $v) => $q->where(function ($q) use ($v) {
+                    $q->where('registration_number', 'like', "%{$v}%")
+                        ->orWhere('type', 'like', "%{$v}%")
+                        ->orWhere('make', 'like', "%{$v}%")
                         ->orWhere('model', 'like', "%{$v}%");
-                    })
-                )
+                }))
 
                 ->latest()
                 ->paginate($request->per_page ?? 20)
