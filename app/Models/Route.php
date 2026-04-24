@@ -10,11 +10,12 @@ class Route extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'origin', 'destination', 'distance', 'estimated_time', 'stops', 'status'
+        'name', 'distance', 'estimated_time', 'points', 'schedules', 'status'
     ];
 
     protected $casts = [
-        'stops' => 'array',
+        'points' => 'array',
+        'schedules' => 'array',
     ];
 
     public function vehicles()

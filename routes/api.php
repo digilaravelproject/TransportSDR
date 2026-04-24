@@ -60,6 +60,7 @@ Route::middleware(['auth:sanctum', 'tenant'])
         Route::post('auth/profile/update',   [Api\AuthController::class, 'updateProfile']);
         // Shift Drivers Management
         Route::get('drivers', [Api\ShiftController::class, 'driversList']);
+        Route::get('drivers/{shift_id}', [Api\ShiftController::class, 'availableDrivers']);
         Route::post('shifts/{shift}/add-driver', [Api\ShiftController::class, 'addDriver']);
         Route::post('shifts/{shift}/remove-driver', [Api\ShiftController::class, 'removeDriver']);
 
@@ -97,6 +98,7 @@ Route::middleware(['auth:sanctum', 'tenant'])
 
         // MODULE 3 — Vehicle Maintenance — routes update karo
         Route::apiResource('vehicles', Api\VehicleController::class);
+        Route::get('routes/{route_id}/available-vehicles', [Api\VehicleController::class, 'availableVehicles']);
         Route::prefix('vehicles')->group(function () {
             Route::get('documents/expiring',         [Api\VehicleController::class, 'expiringDocuments']);
             Route::prefix('{vehicle}')->group(function () {

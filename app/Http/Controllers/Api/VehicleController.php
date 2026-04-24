@@ -57,6 +57,74 @@ class VehicleController extends Controller
         }
     }
 
+    /**
+     * Get vehicles NOT assigned to given route
+     */
+    public function availableVehicles(Request $request, $route_id)
+    {
+        try {
+            $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
+
+            $vehicles = Vehicle::withCount(['trips'])
+
+                // Exclude vehicles already assigned to this route
+                ->whereNotIn('id', function ($query) use ($route_id) {
+                    $query->select('vehicle_id')
+                        ->from('route_vehicle')
+                        ->where('route_id', $route_id);
+                })
+
+                // Optional filters (same as your index)
+                ->when($request->type,
+                    fn($q, $v) => $q->where('type', $v)
+                )
+
+                ->when($request->is_available,
+                    fn($q, $v) => $q->where('is_available', (bool)$v)
+                )
+
+                ->when($request->search,
+                    fn($q, $v) => $q->where(function ($q) use ($v) {
+                        $q->where('registration_number', 'like', "%{$v}%")
+                        ->orWhere('type',  'like', "%{$v}%")
+                        ->orWhere('make',  'like', "%{$v}%")
+                        ->orWhere('model', 'like', "%{$v}%");
+                    })
+                )
+
+                ->latest()
+                ->paginate($request->per_page ?? 20)
+                ->withQueryString();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Available vehicles retrieved successfully',
+                'data'    => VehicleResource::collection($vehicles),
+                'meta'    => [
+                    'total'        => $vehicles->total(),
+                    'current_page' => $vehicles->currentPage(),
+                    'last_page'    => $vehicles->lastPage(),
+                ],
+            ]);
+
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to view vehicles.',
+                'error'   => $e->getMessage(),
+            ], 403);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch available vehicles.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     // ─────────────────────────────────────────────────
     // POST /api/v1/vehicles
     // ─────────────────────────────────────────────────

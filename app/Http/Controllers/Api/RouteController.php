@@ -16,14 +16,22 @@ class RouteController extends Controller
     public function store(Request $request)
     {
         try {
+
             $data = $request->validate([
                 'name' => 'required|string',
-                'origin' => 'required|string',
-                'destination' => 'required|string',
                 'distance' => 'required|numeric',
                 'estimated_time' => 'required|string',
-                'stops' => 'nullable|array',
-                'stops.*' => 'string',
+                'points' => 'required|array|min:1',
+                'points.*.type' => 'required|in:start,stop,end',
+                'points.*.name' => 'required|string',
+                'points.*.lat' => 'required|numeric',
+                'points.*.lng' => 'required|numeric',
+                'points.*.order' => 'required|integer',
+                'schedules' => 'nullable|array',
+                'schedules.*.departure_time' => 'required_with:schedules|string',
+                'schedules.*.arrival_time' => 'required_with:schedules|string',
+                'schedules.*.days' => 'nullable|array',
+                'schedules.*.days.*' => 'string',
             ]);
 
             $route = BusRoute::create($data);
@@ -84,9 +92,21 @@ class RouteController extends Controller
         try {
             $q = $request->query('query');
 
-            $routes = BusRoute::where('name', 'like', "%$q%")
-                ->orWhere('origin', 'like', "%$q%")
-                ->orWhere('destination', 'like', "%$q%")
+            $routes = BusRoute::query()
+                ->where(function ($query) use ($q) {
+
+                    // Search in normal columns
+                    $query->where('name', 'like', "%{$q}%")
+                        ->orWhere('distance', 'like', "%{$q}%")
+                        ->orWhere('estimated_time', 'like', "%{$q}%")
+                        ->orWhere('status', 'like', "%{$q}%");
+
+                    // Search in JSON columns (MySQL)
+                    $query->orWhereRaw("JSON_SEARCH(points, 'one', ?) IS NOT NULL", [$q])
+                        ->orWhereRaw("JSON_SEARCH(schedules, 'one', ?) IS NOT NULL", [$q]);
+
+                })
+                ->orderBy('id', 'desc')
                 ->get();
 
             return response()->json([
@@ -95,7 +115,7 @@ class RouteController extends Controller
                 'data' => $routes
             ], 200);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
 
             return response()->json([
                 'success' => false,
@@ -139,12 +159,19 @@ class RouteController extends Controller
 
             $data = $request->validate([
                 'name' => 'sometimes|string',
-                'origin' => 'sometimes|string',
-                'destination' => 'sometimes|string',
                 'distance' => 'sometimes|numeric',
                 'estimated_time' => 'sometimes|string',
-                'stops' => 'nullable|array',
-                'stops.*' => 'string',
+                'points' => 'nullable|array',
+                'points.*.type' => 'required_with:points|in:start,stop,end',
+                'points.*.name' => 'required_with:points|string',
+                'points.*.lat' => 'required_with:points|numeric',
+                'points.*.lng' => 'required_with:points|numeric',
+                'points.*.order' => 'required_with:points|integer',
+                'schedules' => 'nullable|array',
+                'schedules.*.departure_time' => 'required_with:schedules|string',
+                'schedules.*.arrival_time' => 'required_with:schedules|string',
+                'schedules.*.days' => 'nullable|array',
+                'schedules.*.days.*' => 'string',
             ]);
 
             $route->update($data);

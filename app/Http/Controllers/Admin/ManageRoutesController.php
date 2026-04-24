@@ -20,9 +20,7 @@ class ManageRoutesController extends Controller
         $query = Route::query()->withCount('vehicles');
         
         if ($search) {
-            $query->where('name', 'like', "%{$search}%")
-                  ->orWhere('origin', 'like', "%{$search}%")
-                  ->orWhere('destination', 'like', "%{$search}%");
+            $query->where('name', 'like', "%{$search}%");
         }
 
         if ($status !== null && in_array($status, ['active', 'inactive'])) {
@@ -49,13 +47,20 @@ class ManageRoutesController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'origin' => 'required|string|max:255',
-            'destination' => 'required|string|max:255',
             'distance' => 'nullable|numeric|min:0',
             'estimated_time' => 'nullable|string|max:255',
             'status' => 'required|in:active,inactive',
-            'stops' => 'nullable|array',
-            'stops.*' => 'string|max:255',
+            'points' => 'nullable|array',
+            'points.*.type' => 'required_with:points|in:start,stop,end',
+            'points.*.name' => 'required_with:points|string|max:255',
+            'points.*.lat' => 'required_with:points|numeric',
+            'points.*.lng' => 'required_with:points|numeric',
+            'points.*.order' => 'required_with:points|integer',
+            'schedules' => 'nullable|array',
+            'schedules.*.departure_time' => 'required_with:schedules|string',
+            'schedules.*.arrival_time' => 'required_with:schedules|string',
+            'schedules.*.days' => 'nullable|array',
+            'schedules.*.days.*' => 'string',
         ]);
 
         Route::create($validated);

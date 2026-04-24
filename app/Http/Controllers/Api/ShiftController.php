@@ -26,6 +26,43 @@ class ShiftController extends Controller {
     }
 
     /**
+     * Get drivers NOT assigned to given shift
+     */
+    public function availableDrivers($shift_id)
+    {
+        try {
+
+            // Get driver IDs already assigned to this shift
+            $assignedDriverIds = \DB::table('shift_driver')
+                ->where('shift_id', $shift_id)
+                ->pluck('driver_id');
+
+            // Get drivers not in assigned list
+            $drivers = \App\Models\Staff::withoutGlobalScopes()
+                ->withTrashed()
+                ->whereNotNull('user_id')
+                ->where('is_active', true)
+                ->where('staff_type', 'driver')
+                ->whereNotIn('id', $assignedDriverIds)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Available drivers retrieved successfully',
+                'data' => $drivers,
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve drivers',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Add driver to shift
      */
     public function addDriver(Request $request, $shiftId)
