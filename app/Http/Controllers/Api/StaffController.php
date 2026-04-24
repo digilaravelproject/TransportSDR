@@ -17,20 +17,26 @@ class StaffController extends Controller
     // ─────────────────────────────────────────────────
     // GET /api/v1/staff
     // ─────────────────────────────────────────────────
+
+
     // public function index(Request $request)
     // {
-
     //     $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
     //     try {
-    //         $staff = Staff::with(['user'])
+    //         // Eager load 'role' to optimize database queries
+    //         $staff = Staff::with(['user', 'role'])
     //             ->when($request->staff_type,   fn($q, $v) => $q->where('staff_type', $v))
     //             ->when($request->is_available, fn($q, $v) => $q->where('is_available', (bool)$v))
     //             ->when($request->is_active,    fn($q, $v) => $q->where('is_active', (bool)$v))
     //             ->when($request->search,       fn($q, $v) => $q->where(function ($q) use ($v) {
-    //                 $q->where('name',  'like', "%{$v}%")
-    //                     ->orWhere('phone', 'like', "%{$v}%")
-    //                     ->orWhere('email', 'like', "%{$v}%");
+    //                 $q->where('name',  'like', "%{$v}%")             // Search by Staff Name
+    //                     ->orWhere('phone', 'like', "%{$v}%")         // Search by Phone (Default rakha hai, helpful hota hai)
+    //                     ->orWhere('email', 'like', "%{$v}%")         // Search by Email
+    //                     ->orWhere('staff_type', $v)                  // Search by Role ID (e.g., '1', '2')
+    //                     ->orWhereHas('role', function ($roleQuery) use ($v) {
+    //                         $roleQuery->where('name', 'like', "%{$v}%"); // Search by Role Name (e.g., 'Driver', 'Manager')
+    //                     });
     //             }))
     //             ->latest()
     //             ->paginate($request->per_page ?? 20)
@@ -62,6 +68,7 @@ class StaffController extends Controller
             // Eager load 'role' to optimize database queries
             $staff = Staff::with(['user', 'role'])
                 ->when($request->staff_type,   fn($q, $v) => $q->where('staff_type', $v))
+                ->when($request->work_shift,   fn($q, $v) => $q->where('work_shift', $v)) // NAYA FILTER ADD KIYA HAI
                 ->when($request->is_available, fn($q, $v) => $q->where('is_available', (bool)$v))
                 ->when($request->is_active,    fn($q, $v) => $q->where('is_active', (bool)$v))
                 ->when($request->search,       fn($q, $v) => $q->where(function ($q) use ($v) {
@@ -90,6 +97,117 @@ class StaffController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An unexpected error occurred while fetching staff records.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
+    public function store(Request $request)
+    {
+        $this->checkRole(['superadmin', 'admin']);
+
+        // Updated Validation rules for Form + Documents
+        $data = $request->validate([
+            'name'                   => 'required|string|max:255',
+            'phone'                  => 'required|string|max:15',
+            'email'                  => 'nullable|email|max:255',
+            'staff_type'             => 'required|exists:role_modules,id',
+            'salary_type'            => 'nullable|in:monthly,daily',
+            'work_shift'             => 'nullable|exists:shifts,id', // CHANGE KIYA HAI: Shift ki ID lega
+            'basic_salary'           => 'nullable|numeric|min:0',
+            'address'                => 'nullable|string',
+            'date_of_joining'        => 'nullable|date',
+
+            // Document Fields
+            'aadhar_number'          => 'nullable|string|max:50',
+            'aadhar_file'            => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+
+            'pan_number'             => 'nullable|string|max:50',
+            'pan_file'               => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+
+            'dl_number'              => 'nullable|string|max:50',
+            'dl_expiry'              => 'nullable|date',
+            'dl_file'                => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+
+            'badge_number'           => 'nullable|string|max:50',
+            'badge_expiry'           => 'nullable|date',
+            'badge_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+
+            'passbook_file'          => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'photo_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ]);
+
+        try {
+            // Naya service method call kiya hai jo staff aur files dono save karega
+            $staff = $this->service->storeWithDocuments($data, $request);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Staff and documents saved successfully.',
+                'data'    => new StaffResource($staff),
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while adding the staff member.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
+    public function update(Request $request, Staff $staff)
+    {
+        $this->checkRole(['superadmin', 'admin']);
+
+        // Updated Validation rules for Form + Documents
+        $data = $request->validate([
+            'name'                   => 'sometimes|string|max:255',
+            'phone'                  => 'sometimes|string|max:15',
+            'email'                  => 'nullable|email|max:255',
+            'staff_type'             => 'sometimes|exists:role_modules,id',
+            'salary_type'            => 'nullable|in:monthly,daily',
+            'work_shift'             => 'nullable|exists:shifts,id', // CHANGE KIYA HAI: Shift ki ID lega
+            'assigned_vehicle'       => 'nullable|string|max:100',
+            'basic_salary'           => 'nullable|numeric|min:0',
+            'address'                => 'nullable|string',
+            'date_of_joining'        => 'nullable|date',
+            'is_available'           => 'boolean',
+            'is_active'              => 'boolean',
+
+            // Document Fields
+            'aadhar_number'          => 'nullable|string|max:50',
+            'aadhar_file'            => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+
+            'pan_number'             => 'nullable|string|max:50',
+            'pan_file'               => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+
+            'dl_number'              => 'nullable|string|max:50',
+            'dl_expiry'              => 'nullable|date',
+            'dl_file'                => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+
+            'badge_number'           => 'nullable|string|max:50',
+            'badge_expiry'           => 'nullable|date',
+            'badge_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+
+            'passbook_file'          => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'photo_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ]);
+
+        try {
+            // Naya service method: updateWithDocuments
+            $staff = $this->service->updateWithDocuments($staff, $data, $request);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Staff and documents updated successfully.',
+                'data'    => new StaffResource($staff),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while updating the staff member.',
                 'error'   => $e->getMessage(),
             ], 500);
         }
@@ -148,58 +266,58 @@ class StaffController extends Controller
     // }
 
 
-    public function store(Request $request)
-    {
-        $this->checkRole(['superadmin', 'admin']);
+    // public function store(Request $request)
+    // {
+    //     $this->checkRole(['superadmin', 'admin']);
 
-        // Updated Validation rules for Form + Documents
-        $data = $request->validate([
-            'name'                   => 'required|string|max:255',
-            'phone'                  => 'required|string|max:15',
-            'email'                  => 'nullable|email|max:255',
-            'staff_type' => 'required|exists:role_modules,id',
-            'salary_type'            => 'nullable|in:monthly,daily',
-            'work_shift'             => 'nullable|string|max:100',
-            'basic_salary'           => 'nullable|numeric|min:0',
-            'address'                => 'nullable|string',
-            'date_of_joining'        => 'nullable|date',
+    //     // Updated Validation rules for Form + Documents
+    //     $data = $request->validate([
+    //         'name'                   => 'required|string|max:255',
+    //         'phone'                  => 'required|string|max:15',
+    //         'email'                  => 'nullable|email|max:255',
+    //         'staff_type' => 'required|exists:role_modules,id',
+    //         'salary_type'            => 'nullable|in:monthly,daily',
+    //         'work_shift'             => 'nullable|string|max:100',
+    //         'basic_salary'           => 'nullable|numeric|min:0',
+    //         'address'                => 'nullable|string',
+    //         'date_of_joining'        => 'nullable|date',
 
-            // Document Fields
-            'aadhar_number'          => 'nullable|string|max:50',
-            'aadhar_file'            => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+    //         // Document Fields
+    //         'aadhar_number'          => 'nullable|string|max:50',
+    //         'aadhar_file'            => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
 
-            'pan_number'             => 'nullable|string|max:50',
-            'pan_file'               => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+    //         'pan_number'             => 'nullable|string|max:50',
+    //         'pan_file'               => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
 
-            'dl_number'              => 'nullable|string|max:50',
-            'dl_expiry'              => 'nullable|date',
-            'dl_file'                => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+    //         'dl_number'              => 'nullable|string|max:50',
+    //         'dl_expiry'              => 'nullable|date',
+    //         'dl_file'                => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
 
-            'badge_number'           => 'nullable|string|max:50',
-            'badge_expiry'           => 'nullable|date',
-            'badge_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+    //         'badge_number'           => 'nullable|string|max:50',
+    //         'badge_expiry'           => 'nullable|date',
+    //         'badge_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
 
-            'passbook_file'          => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'photo_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-        ]);
+    //         'passbook_file'          => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+    //         'photo_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+    //     ]);
 
-        try {
-            // Naya service method call kiya hai jo staff aur files dono save karega
-            $staff = $this->service->storeWithDocuments($data, $request);
+    //     try {
+    //         // Naya service method call kiya hai jo staff aur files dono save karega
+    //         $staff = $this->service->storeWithDocuments($data, $request);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Staff and documents saved successfully.',
-                'data'    => new StaffResource($staff),
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'An unexpected error occurred while adding the staff member.',
-                'error'   => $e->getMessage(),
-            ], 500);
-        }
-    }
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Staff and documents saved successfully.',
+    //             'data'    => new StaffResource($staff),
+    //         ], 201);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'An unexpected error occurred while adding the staff member.',
+    //             'error'   => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
 
     // ─────────────────────────────────────────────────
     // GET /api/v1/staff/{id}
@@ -288,61 +406,61 @@ class StaffController extends Controller
     //     }
     // }
 
-    public function update(Request $request, Staff $staff)
-    {
-        $this->checkRole(['superadmin', 'admin']);
+    // public function update(Request $request, Staff $staff)
+    // {
+    //     $this->checkRole(['superadmin', 'admin']);
 
-        // Updated Validation rules for Form + Documents
-        $data = $request->validate([
-            'name'                   => 'sometimes|string|max:255',
-            'phone'                  => 'sometimes|string|max:15',
-            'email'                  => 'nullable|email|max:255',
-            'staff_type'             => 'sometimes|exists:role_modules,id',
-            'salary_type'            => 'nullable|in:monthly,daily',
-            'work_shift'             => 'nullable|string|max:100',
-            'assigned_vehicle'       => 'nullable|string|max:100',
-            'basic_salary'           => 'nullable|numeric|min:0',
-            'address'                => 'nullable|string',
-            'date_of_joining'        => 'nullable|date',
-            'is_available'           => 'boolean',
-            'is_active'              => 'boolean',
+    //     // Updated Validation rules for Form + Documents
+    //     $data = $request->validate([
+    //         'name'                   => 'sometimes|string|max:255',
+    //         'phone'                  => 'sometimes|string|max:15',
+    //         'email'                  => 'nullable|email|max:255',
+    //         'staff_type'             => 'sometimes|exists:role_modules,id',
+    //         'salary_type'            => 'nullable|in:monthly,daily',
+    //         'work_shift'             => 'nullable|string|max:100',
+    //         'assigned_vehicle'       => 'nullable|string|max:100',
+    //         'basic_salary'           => 'nullable|numeric|min:0',
+    //         'address'                => 'nullable|string',
+    //         'date_of_joining'        => 'nullable|date',
+    //         'is_available'           => 'boolean',
+    //         'is_active'              => 'boolean',
 
-            // Document Fields
-            'aadhar_number'          => 'nullable|string|max:50',
-            'aadhar_file'            => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+    //         // Document Fields
+    //         'aadhar_number'          => 'nullable|string|max:50',
+    //         'aadhar_file'            => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
 
-            'pan_number'             => 'nullable|string|max:50',
-            'pan_file'               => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+    //         'pan_number'             => 'nullable|string|max:50',
+    //         'pan_file'               => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
 
-            'dl_number'              => 'nullable|string|max:50',
-            'dl_expiry'              => 'nullable|date',
-            'dl_file'                => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+    //         'dl_number'              => 'nullable|string|max:50',
+    //         'dl_expiry'              => 'nullable|date',
+    //         'dl_file'                => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
 
-            'badge_number'           => 'nullable|string|max:50',
-            'badge_expiry'           => 'nullable|date',
-            'badge_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+    //         'badge_number'           => 'nullable|string|max:50',
+    //         'badge_expiry'           => 'nullable|date',
+    //         'badge_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
 
-            'passbook_file'          => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'photo_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-        ]);
+    //         'passbook_file'          => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+    //         'photo_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+    //     ]);
 
-        try {
-            // Naya service method: updateWithDocuments
-            $staff = $this->service->updateWithDocuments($staff, $data, $request);
+    //     try {
+    //         // Naya service method: updateWithDocuments
+    //         $staff = $this->service->updateWithDocuments($staff, $data, $request);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Staff and documents updated successfully.',
-                'data'    => new StaffResource($staff),
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'An unexpected error occurred while updating the staff member.',
-                'error'   => $e->getMessage(),
-            ], 500);
-        }
-    }
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Staff and documents updated successfully.',
+    //             'data'    => new StaffResource($staff),
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'An unexpected error occurred while updating the staff member.',
+    //             'error'   => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
 
     // ─────────────────────────────────────────────────
     // DELETE /api/v1/staff/{id}

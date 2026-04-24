@@ -16,7 +16,8 @@ class Staff extends Model
         'name',
         'phone',
         'email',
-        'staff_type',         // driver, helper, office
+        'staff_type',
+        'work_shift',         // driver, helper, office
         'date_of_birth',
         'date_of_joining',
         'address',
@@ -126,5 +127,9 @@ class Staff extends Model
     public function role()
     {
         return $this->belongsTo(\App\Models\RoleModule::class, 'staff_type');
+    }
+    public function shift()
+    {
+        return $this->belongsTo(\App\Models\Shift::class, 'work_shift', 'id');
     }
 }
