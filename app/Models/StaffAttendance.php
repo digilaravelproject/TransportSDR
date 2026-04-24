@@ -12,20 +12,7 @@ class StaffAttendance extends Model
     protected $table = 'staff_attendances';
 
     protected $fillable = [
-<<<<<<< Updated upstream
         'staff_id', 'date', 'status', 'in_time', 'out_time', 'total_hours', 'notes'
-=======
-        'tenant_id',
-        'staff_id',
-        'date',
-        'trip_purpose',
-        'status',
-        'check_in',
-        'check_out',
-        'working_hours',
-        'notes',
-        'marked_by',
->>>>>>> Stashed changes
     ];
 
     protected $casts = [
