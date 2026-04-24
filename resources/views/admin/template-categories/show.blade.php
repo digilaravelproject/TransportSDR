@@ -2,22 +2,23 @@
 @section('title', $templateCategory->name)
 
 @section('content')
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>
-            <i class="{{ $templateCategory->icon ?? 'fas fa-tags' }} me-2" style="color: {{ $templateCategory->color }};"></i>
-            {{ $templateCategory->name }}
-        </h2>
-        <div class="d-flex gap-2">
-            <a href="{{ route('admin.document-templates.create') }}?category={{ $templateCategory->id }}"
-                class="btn btn-success">
-                <i class="fas fa-plus me-1"></i>Add Template
-            </a>
-            <a href="{{ route('admin.template-categories.edit', $templateCategory->id) }}" class="btn btn-primary">
-                <i class="fas fa-edit me-1"></i>Edit
-            </a>
-            <a href="{{ route('admin.template-categories.index') }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left me-1"></i>Back
-            </a>
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h2 class="fw-bold mb-0"><i class="{{ $templateCategory->icon ?? 'fas fa-tags' }} me-2" style="color: {{ $templateCategory->color }};"></i> {{ $templateCategory->name }}</h2>
+            <p class="text-muted">Category details and templates</p>
+        </div>
+        <div class="col-auto">
+            <div class="d-flex gap-2">
+                <a href="{{ route('admin.document-templates.create') }}?category={{ $templateCategory->id }}" class="btn btn-success">
+                    <i class="fas fa-plus me-1"></i>Add Template
+                </a>
+                <a href="{{ route('admin.template-categories.edit', $templateCategory->id) }}" class="btn btn-primary">
+                    <i class="fas fa-edit me-1"></i>Edit
+                </a>
+                <a href="{{ route('admin.template-categories.index') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back
+                </a>
+            </div>
         </div>
     </div>
 

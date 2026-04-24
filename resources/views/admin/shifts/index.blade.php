@@ -4,11 +4,16 @@
 
 @section('content')
 <div class="mb-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Manage Shifts</h2>
-        <a href="{{ route('admin.shifts.create') }}" class="btn btn-primary">
-            <i class="fas fa-plus me-2"></i>Create New Shift
-        </a>
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h2 class="fw-bold mb-0">Manage Shifts</h2>
+            <p class="text-muted">Create and manage work shifts</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ route('admin.shifts.create') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Create New Shift
+            </a>
+        </div>
     </div>
 
     @if ($message = Session::get('success'))

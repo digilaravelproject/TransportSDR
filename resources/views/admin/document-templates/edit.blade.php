@@ -2,8 +2,14 @@
 @section('title', 'Edit Template')
 
 @section('content')
-    <div class="mb-4">
-        <h2><i class="fas fa-edit me-2"></i>Edit: {{ $documentTemplate->name }}</h2>
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h2 class="fw-bold mb-0"><i class="fas fa-edit me-2"></i>Edit: {{ $documentTemplate->name }}</h2>
+            <p class="text-muted">Modify template contents and settings</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ route('admin.document-templates.index') }}" class="btn btn-secondary">Back</a>
+        </div>
     </div>
 
     <div class="row">
@@ -16,10 +22,7 @@
 
                         <div class="row">
                             <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Template Name *</label>
-                                    <input type="text" name="name" class="form-control"
-                                        value="{{ old('name', $documentTemplate->name) }}" required>
+                                
                                 </div>
                             </div>
                             <div class="col-md-6">

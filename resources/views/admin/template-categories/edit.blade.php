@@ -2,8 +2,14 @@
 @section('title', 'Edit Category')
 
 @section('content')
-    <div class="mb-4">
-        <h2><i class="fas fa-edit me-2"></i>Edit Category: {{ $templateCategory->name }}</h2>
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h2 class="fw-bold mb-0"><i class="fas fa-edit me-2"></i>Edit Category: {{ $templateCategory->name }}</h2>
+            <p class="text-muted">Update category details</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ route('admin.template-categories.index') }}" class="btn btn-secondary">Back</a>
+        </div>
     </div>
 
     <div class="row">
@@ -13,10 +19,7 @@
                     <form action="{{ route('admin.template-categories.update', $templateCategory->id) }}" method="POST">
                         @csrf @method('PUT')
 
-                        <div class="mb-3">
-                            <label class="form-label">Category Name *</label>
-                            <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
-                                value="{{ old('name', $templateCategory->name) }}" required>
+                        
                             @error('name')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror

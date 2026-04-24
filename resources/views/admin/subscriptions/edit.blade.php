@@ -3,11 +3,16 @@
 @section('title', 'Edit Subscription')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Edit Subscription #{{ $subscription->id }}</h2>
-    <a href="{{ route('admin.subscriptions.show', $subscription->id) }}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left me-2"></i>Back to Details
-    </a>
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h2 class="fw-bold mb-0">Edit Subscription #{{ $subscription->id }}</h2>
+        <p class="text-muted">Modify plan and status for this subscription</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ route('admin.subscriptions.show', $subscription->id) }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Details
+        </a>
+    </div>
 </div>
 
 <div class="card">

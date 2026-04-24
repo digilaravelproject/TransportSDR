@@ -2,8 +2,14 @@
 @section('title', 'Create Template')
 
 @section('content')
-    <div class="mb-4">
-        <h2><i class="fas fa-plus me-2"></i>Create Document Template</h2>
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h2 class="fw-bold mb-0"><i class="fas fa-plus me-2"></i>Create Document Template</h2>
+            <p class="text-muted">Build a document template for invoices, letters and more</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ route('admin.document-templates.index') }}" class="btn btn-secondary">Back</a>
+        </div>
     </div>
 
     <div class="row">
@@ -15,10 +21,7 @@
 
                         <div class="row">
                             <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Template Name *</label>
-                                    <input type="text" name="name"
-                                        class="form-control @error('name') is-invalid @enderror" value="{{ old('name') }}"
+                                
                                         placeholder="e.g. Invoice with GST" required>
                                     @error('name')
                                         <div class="invalid-feedback">{{ $message }}</div>

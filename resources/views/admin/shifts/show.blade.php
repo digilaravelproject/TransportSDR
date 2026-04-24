@@ -3,9 +3,14 @@
 @section('title', $shift->name)
 
 @section('content')
-<div class="mb-4">
-    <h2>{{ $shift->name }}</h2>
-    <p class="text-muted">Date: {{ $shift->date ? $shift->date->format('Y-m-d') : 'N/A' }}</p>
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h2 class="fw-bold mb-0">{{ $shift->name }}</h2>
+        <p class="text-muted">Date: {{ $shift->date ? $shift->date->format('Y-m-d') : 'N/A' }}</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ route('admin.shifts.index') }}" class="btn btn-secondary">Back</a>
+    </div>
 </div>
 
 <div class="row">
@@ -104,10 +109,15 @@
             <div class="card-footer bg-white border-top-0 pt-0 pb-3">
                 <form method="POST" action="{{ route('admin.shifts.add-driver', $shift->id) }}">
                     @csrf
-                    <div class="mb-2">
-                        <select name="driver_id" class="form-select" required>
-                            <option value="">Select driver...</option>
-                            @foreach($availableDrivers as $dr)
+                    <div class="row align-items-center mb-4">
+                        <div class="col">
+                            <h2 class="fw-bold mb-0">{{ $shift->name }}</h2>
+                            <p class="text-muted">Shift overview and assigned drivers</p>
+                        </div>
+                        <div class="col-auto">
+                            <a href="{{ route('admin.shifts.index') }}" class="btn btn-secondary">Back</a>
+                        </div>
+                    </div>
                                 @if(!$shift->drivers->contains('id', $dr->id))
                                     <option value="{{ $dr->id }}">{{ $dr->name }} ({{ $dr->phone }})</option>
                                 @endif

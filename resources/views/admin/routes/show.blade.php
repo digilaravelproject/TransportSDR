@@ -3,9 +3,12 @@
 @section('title', 'Route Details')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Route Details</h2>
-    <div>
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h2 class="fw-bold mb-0">Route Details</h2>
+        <p class="text-muted">Route information and assigned vehicles</p>
+    </div>
+    <div class="col-auto">
         <a href="{{ route('admin.routes.edit', $route->id) }}" class="btn btn-warning me-2">
             <i class="fas fa-edit me-1"></i> Edit
         </a>

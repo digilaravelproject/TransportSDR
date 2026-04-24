@@ -3,8 +3,14 @@
 @section('title', 'Create Shift')
 
 @section('content')
-<div class="mb-4">
-    <h2>Create New Shift</h2>
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h2 class="fw-bold mb-0">Create New Shift</h2>
+        <p class="text-muted">Add a new shift schedule</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ route('admin.shifts.index') }}" class="btn btn-secondary">Back</a>
+    </div>
 </div>
 
 @if ($errors->any())
@@ -26,10 +32,6 @@
                 <form action="{{ route('admin.shifts.store') }}" method="POST">
                     @csrf
 
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Shift Name *</label>
-                        <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ old('name') }}" placeholder="e.g., Morning Shift A" required>
-                        @error('name')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
                     </div>

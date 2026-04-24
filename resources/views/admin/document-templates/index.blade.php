@@ -2,11 +2,16 @@
 @section('title', 'Document Templates')
 
 @section('content')
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-file-alt me-2"></i>Document Templates</h2>
-        <a href="{{ route('admin.document-templates.create') }}" class="btn btn-primary">
-            <i class="fas fa-plus me-2"></i>Add Template
-        </a>
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h2 class="fw-bold mb-0"><i class="fas fa-file-alt me-2"></i>Document Templates</h2>
+            <p class="text-muted">Manage document templates and previews</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ route('admin.document-templates.create') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Add Template
+            </a>
+        </div>
     </div>
 
     @if (session('success'))

@@ -2,8 +2,14 @@
 @section('title', 'Create Category')
 
 @section('content')
-    <div class="mb-4">
-        <h2><i class="fas fa-plus me-2"></i>Create Template Category</h2>
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h2 class="fw-bold mb-0"><i class="fas fa-plus me-2"></i>Create Template Category</h2>
+            <p class="text-muted">Add a new document template category</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ route('admin.template-categories.index') }}" class="btn btn-secondary">Back</a>
+        </div>
     </div>
 
     <div class="row">
@@ -13,10 +19,7 @@
                     <form action="{{ route('admin.template-categories.store') }}" method="POST">
                         @csrf
 
-                        <div class="mb-3">
-                            <label class="form-label">Category Name *</label>
-                            <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
-                                value="{{ old('name') }}" placeholder="e.g. Invoice, Letterhead, Quotation" required>
+                        
                             @error('name')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror

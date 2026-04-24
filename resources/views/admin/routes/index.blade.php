@@ -3,11 +3,16 @@
 @section('title', 'Manage Routes')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Manage Routes</h2>
-    <a href="{{ route('admin.routes.create') }}" class="btn btn-primary">
-        <i class="fas fa-plus me-2"></i> Add Route
-    </a>
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h2 class="fw-bold mb-0">Manage Routes</h2>
+        <p class="text-muted">Create and assign vehicles to routes</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ route('admin.routes.create') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i> Add Route
+        </a>
+    </div>
 </div>
 
 <!-- Search & Filter -->

@@ -3,11 +3,16 @@
 @section('title', 'Subscription Statistics')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Subscription Statistics</h2>
-    <a href="{{ route('admin.subscriptions.index') }}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left me-2"></i>Back
-    </a>
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h2 class="fw-bold mb-0">Subscription Statistics</h2>
+        <p class="text-muted">Overview of subscription metrics</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ route('admin.subscriptions.index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back
+        </a>
+    </div>
 </div>
 
 <div class="row">

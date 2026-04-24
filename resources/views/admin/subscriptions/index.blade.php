@@ -3,9 +3,12 @@
 @section('title', 'Manage Subscriptions')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Manage Subscriptions</h2>
-    <div>
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h2 class="fw-bold mb-0">Manage Subscriptions</h2>
+        <p class="text-muted">View and manage customer subscriptions</p>
+    </div>
+    <div class="col-auto">
         <a href="{{ route('admin.subscriptions.export') }}" class="btn btn-success me-2">
             <i class="fas fa-file-excel me-2"></i>Export CSV
         </a>

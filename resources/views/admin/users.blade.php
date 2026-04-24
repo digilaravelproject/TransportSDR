@@ -3,12 +3,17 @@
 @section('title', 'Manage Users')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Manage Users</h2>
-    <a href="{{ route('admin.users.create') }}" class="btn btn-primary">
-        <i class="fas fa-plus me-2"></i>
-        Add User
-    </a>
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h2 class="fw-bold mb-0">Manage Users</h2>
+        <p class="text-muted">List and manage platform users</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ route('admin.users.create') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>
+            Add User
+        </a>
+    </div>
 </div>
 
 <div class="card">
