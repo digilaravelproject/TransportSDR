@@ -62,29 +62,41 @@ class ShiftController extends Controller {
         }
     }
 
-    /**
-     * Add driver to shift
-     */
     public function addDriver(Request $request, $shiftId)
     {
-        $request->validate([
-            'driver_id' => 'required|exists:staff,id',
-        ]);
-        $shift = Shift::findOrFail($shiftId);
-        $driverId = $request->input('driver_id');
-        // Check if already assigned
-        if ($shift->drivers()->where('staff.id', $driverId)->exists()) {
+        try {
+    
+            $request->validate([
+                'driver_id' => 'required|exists:staff,id',
+            ]);
+    
+            $shift = Shift::findOrFail($shiftId);
+    
+            $driverId = $request->input('driver_id');
+    
+            // Check if already assigned
+            if ($shift->drivers()->where('staff.id', $driverId)->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Driver already assigned to this shift',
+                ], 409);
+            }
+    
+            // Safe attach (no duplicate error)
+            $shift->drivers()->syncWithoutDetaching([$driverId]);
+    
+            return response()->json([
+                'success' => true,
+                'message' => 'Driver added to shift successfully',
+            ], 200);
+    
+        } catch (\Exception $e) {
+    
             return response()->json([
                 'success' => false,
-                'message' => 'Driver already assigned to this shift',
-            ], 409);
+                'message' => $e->getMessage(), // temporarily show real error
+            ], 500);
         }
-        // Removed max_drivers check
-        $shift->drivers()->attach($driverId);
-        return response()->json([
-            'success' => true,
-            'message' => 'Driver added to shift successfully',
-        ], 200);
     }
 
     /**
