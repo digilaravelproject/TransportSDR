@@ -98,18 +98,33 @@ Route::middleware(['auth:sanctum', 'tenant'])
         });
 
         // MODULE 3 — Vehicle Maintenance — routes update karo
+        // Additional vehicle endpoints
+        Route::get('vehicles/stats', [Api\VehicleController::class, 'stats']);
+        Route::get('vehicles/list', [Api\VehicleController::class, 'list']);
+        Route::get('vehicles/search', [Api\VehicleController::class, 'search']);
+        Route::get('vehicles/filters', [Api\VehicleController::class, 'filter']);
         Route::apiResource('vehicles', Api\VehicleController::class);
         Route::get('routes/{route_id}/available-vehicles', [Api\VehicleController::class, 'availableVehicles']);
         Route::prefix('vehicles')->group(function () {
             Route::get('documents/expiring',         [Api\VehicleController::class, 'expiringDocuments']);
             Route::prefix('{vehicle}')->group(function () {
-                Route::post('fuel',                  [Api\VehicleController::class, 'addFuel']);
-                Route::post('maintenance',           [Api\VehicleController::class, 'addMaintenance']);
-                Route::post('document',              [Api\VehicleController::class, 'addDocument']);
-                Route::post('spare-part',            [Api\VehicleController::class, 'addSparePart']);
-                Route::get('report',                 [Api\VehicleController::class, 'report']);
-                Route::get('history',                [Api\VehicleController::class, 'history']);
-                Route::get('gps',                    [Api\VehicleController::class, 'gpsLocation']);
+                // New unified activity endpoints
+                Route::post('activity/fuel',    [Api\VehicleActivityController::class, 'storeFuel']);
+                Route::get('activity/fuel',     [Api\VehicleActivityController::class, 'fuelHistory']);
+
+                Route::post('activity/service', [Api\VehicleActivityController::class, 'storeService']);
+                Route::get('activity/service',  [Api\VehicleActivityController::class, 'serviceHistory']);
+
+                Route::post('activity/repair',  [Api\VehicleActivityController::class, 'storeRepair']);
+                Route::get('activity/repair',   [Api\VehicleActivityController::class, 'repairHistory']);
+
+                // Documents and timeline
+                Route::get('documents',         [Api\VehicleActivityController::class, 'documents']);
+                Route::get('timeline',          [Api\VehicleActivityController::class, 'timeline']);
+
+                // Keep vehicle report and gps endpoints
+                Route::get('report',            [Api\VehicleController::class, 'report']);
+                Route::get('gps',               [Api\VehicleController::class, 'gpsLocation']);
             });
         });
 

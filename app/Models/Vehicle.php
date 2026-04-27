@@ -14,14 +14,30 @@ class Vehicle extends Model
         'registration_number',
         'type',
         'seating_capacity',
-        'make',
-        'model',
-        'fuel_type',
-        'current_km',
+        'model_year',
+        'per_km_price',
+        'ac_price_per_km',
+        'rc_number',
+        'rc_expiry',
+        'rc_file',
+        'insurance_number',
+        'insurance_expiry',
+        'insurance_file',
+        'permit_number',
+        'permit_expiry',
+        'permit_file',
         'is_available',
         'is_active',
     ];
-    protected $casts = ['is_available' => 'boolean', 'is_active' => 'boolean'];
+    protected $casts = [
+        'is_available' => 'boolean',
+        'is_active' => 'boolean',
+        'per_km_price' => 'decimal:2',
+        'ac_price_per_km' => 'decimal:2',
+        'rc_expiry' => 'date',
+        'insurance_expiry' => 'date',
+        'permit_expiry' => 'date',
+    ];
     public function trips()
     {
         return $this->hasMany(Trip::class);
