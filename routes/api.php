@@ -184,35 +184,14 @@ Route::middleware(['auth:sanctum', 'tenant'])
             });
         });
         // MODULE 5 — Corporate / Company Duty Management
-        Route::prefix('corporate')->group(function () {
-            Route::get('/',                                          [Api\CorporateController::class, 'index']);
-            Route::post('/',                                         [Api\CorporateController::class, 'store']);
-            Route::get('/{corporate}',                               [Api\CorporateController::class, 'show']);
-            Route::put('/{corporate}',                               [Api\CorporateController::class, 'update']);
-            Route::delete('/{corporate}',                            [Api\CorporateController::class, 'destroy']);
-
-            Route::prefix('/{corporate}')->group(function () {
-                // Duties
-                Route::get('duties',                                 [Api\CorporateController::class, 'duties']);
-                Route::post('duty',                                  [Api\CorporateController::class, 'addDuty']);
-                Route::patch('duty/{duty}',                          [Api\CorporateController::class, 'updateDuty']);
-
-                // Fines
-                Route::get('fines',                                  [Api\CorporateController::class, 'fines']);
-                Route::post('fine',                                  [Api\CorporateController::class, 'addFine']);
-                Route::patch('fine/{fine}/waive',                    [Api\CorporateController::class, 'waiveFine']);
-
-                // Invoice
-                Route::post('generate-invoice',                      [Api\CorporateController::class, 'generateInvoice']);
-                Route::get('invoice/{payment}',                      [Api\CorporateController::class, 'downloadInvoice']);
-
-                // Payments
-                Route::get('payments',                               [Api\CorporateController::class, 'payments']);
-                Route::post('payment/{payment}/pay',                 [Api\CorporateController::class, 'recordPayment']);
-
-                // Report
-                Route::get('report',                                 [Api\CorporateController::class, 'report']);
-            });
+        Route::prefix('vendors')->group(function () {
+            Route::post('/', [Api\VendorController::class, 'store']);
+            Route::get('/', [Api\VendorController::class, 'index']);
+            Route::get('/{vendor}', [Api\VendorController::class, 'show']);
+            Route::get('/{vendor}/available-vehicles', [Api\VendorController::class, 'availableVehicles']);
+            Route::post('/{vendor}/assign-vehicles', [Api\VendorController::class, 'assignVehicles']);
+            Route::delete('/{vendor}/remove-vehicle/{vehicle}', [Api\VendorController::class, 'removeVehicle']);
+            Route::post('/{vendor}/bills', [Api\VendorController::class, 'addBill']);
         });
 
         // MODULE 6 — Dashboard
