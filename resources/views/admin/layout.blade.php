@@ -104,6 +104,16 @@
                             <i class="fas fa-business-time me-2"></i> Shifts
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains(Route::currentRouteName(), 'admin.vehicles') ? 'active' : '' }}" href="{{ route('admin.vehicles.index') }}">
+                            <i class="fas fa-truck me-2"></i> Vehicles
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains(Route::currentRouteName(), 'admin.vendors') ? 'active' : '' }}" href="{{ route('admin.vendors.index') }}">
+                            <i class="fas fa-handshake me-2"></i> Vendors
+                        </a>
+                    </li>
                     <div class="px-4 mt-4 mb-2 small text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">Resources</div>
                     <li class="nav-item">
                         <a class="nav-link {{ str_contains(Route::currentRouteName(), 'admin.document-templates') ? 'active' : '' }}" href="{{ route('admin.document-templates.index') }}">

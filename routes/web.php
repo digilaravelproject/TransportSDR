@@ -44,6 +44,10 @@ Route::prefix('admin')->group(function () {
 
         Route::resource('/users', AdminUserController::class, ['as' => 'admin']);
 
+        // Admin Vehicle & Vendor Management
+        Route::resource('/vehicles', App\Http\Controllers\Admin\AdminVehicleController::class, ['as' => 'admin']);
+        Route::resource('/vendors', App\Http\Controllers\Admin\AdminVendorController::class, ['as' => 'admin']);
+
         Route::resource('/plans', ManagePlansController::class, ['as' => 'admin']);
 
         Route::get('/subscriptions/statistics', [ManageSubscriptionsController::class, 'statistics'])->name('admin.subscriptions.statistics');
