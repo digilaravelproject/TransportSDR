@@ -6,73 +6,46 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::create('cash_book_entries', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
 
-            // Entry type
-            $table->enum('entry_type', ['income', 'expense']);
-            $table->enum('payment_mode', ['cash', 'online', 'cheque', 'upi', 'bank_transfer', 'neft', 'rtgs', 'imps']);
+            // Tenant relation
+            $table->unsignedBigInteger('tenant_id')->nullable()->index();
 
-            // Category
-            $table->enum('category', [
-                // Income categories
-                'trip_payment',
-                'advance_received',
-                'corporate_payment',
-                'lead_advance',
-                'other_income',
-                // Expense categories
-                'fuel_expense',
-                'maintenance_expense',
-                'salary_payment',
-                'da_payment',
-                'advance_given',
-                'toll_charge',
-                'office_expense',
-                'vehicle_insurance',
-                'vehicle_tax',
-                'other_expense',
-            ]);
+            // Entry details
+            $table->enum('entry_type', ['income', 'expense'])->index();
+            $table->string('payment_mode')->index();
+            $table->string('category')->index();
 
-            // Reference linking
-            $table->string('reference_type')->nullable(); // Trip, Lead, Staff, Vehicle etc.
-            $table->unsignedBigInteger('reference_id')->nullable();
-            $table->string('reference_number')->nullable(); // TRP-2026-0001
-
-            // Amount
+            // Financial data
             $table->decimal('amount', 12, 2);
-            $table->decimal('opening_balance', 12, 2)->default(0);
-            $table->decimal('closing_balance', 12, 2)->default(0);
 
-            // Details
-            $table->string('description');
-            $table->date('entry_date');
-            $table->string('party_name')->nullable();       // Customer/Vendor name
-            $table->string('party_contact', 15)->nullable();
+            // Optional details
+            $table->text('description')->nullable();
+            $table->date('entry_date')->index();
+            $table->string('reference_number')->nullable();
 
-            // Online payment details
-            $table->string('transaction_id')->nullable();
-            $table->string('bank_name')->nullable();
-            $table->string('cheque_number')->nullable();
-            $table->date('cheque_date')->nullable();
+            // Receipt file path
+            $table->string('receipt_path')->nullable();
 
-            // Status
-            $table->enum('status', ['confirmed', 'pending', 'bounced', 'cancelled'])->default('confirmed');
-
-            $table->text('notes')->nullable();
-            $table->string('receipt_path')->nullable();    // uploaded receipt image
-            $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
             $table->timestamps();
-            $table->softDeletes();
 
-            $table->index(['tenant_id', 'entry_date']);
-            $table->index(['tenant_id', 'category']);
+            // Optional foreign key (enable if tenants table exists)
+            // $table->foreign('tenant_id')
+            //       ->references('id')
+            //       ->on('tenants')
+            //       ->cascadeOnDelete();
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('cash_book_entries');

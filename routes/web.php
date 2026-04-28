@@ -66,5 +66,9 @@ Route::prefix('admin')->group(function () {
         Route::post('/routes/{route}/remove-vehicle', [App\Http\Controllers\Admin\ManageRoutesController::class, 'removeVehicle'])->name('admin.routes.remove-vehicle');
         // Manage Modules
         Route::resource('/modules', App\Http\Controllers\Admin\ModuleController::class, ['as' => 'admin']);
+        // Finance management
+        Route::get('/finance', [App\Http\Controllers\Admin\FinanceController::class, 'index'])->name('admin.finance.index');
+        Route::get('/finance/{entry}', [App\Http\Controllers\Admin\FinanceController::class, 'show'])->name('admin.finance.show');
+        Route::delete('/finance/{entry}', [App\Http\Controllers\Admin\FinanceController::class, 'destroy'])->name('admin.finance.destroy');
     });
 });

@@ -228,6 +228,15 @@ Route::middleware(['auth:sanctum', 'tenant'])
         });
 
         // MODULE 8 — Cash Book Management
+        // Legacy cashbook routes remain for backward compatibility.
+        // New finance APIs (income/expense) are under /finance
+        Route::prefix('finance')->group(function () {
+            Route::get('/', [Api\FinanceController::class, 'index']);
+            Route::post('income', [Api\FinanceController::class, 'storeIncome']);
+            Route::post('expense', [Api\FinanceController::class, 'storeExpense']);
+            Route::get('{entry}', [Api\FinanceController::class, 'show']);
+        });
+
         Route::prefix('cashbook')->group(function () {
             // Balance
             Route::get('balance',                                    [Api\CashBookController::class, 'balance']);
@@ -326,6 +335,6 @@ Route::middleware(['auth:sanctum', 'tenant'])
         // Staff Attendance
         Route::get('attendance', [Api\AttendanceController::class, 'index']);
         Route::post('attendance', [Api\AttendanceController::class, 'store']);
-        Route::get('attendance/staff/{staff}', [Api\AttendanceController::class, 'staffRecords']);
+        Route::get('attendance/staff_record', [Api\AttendanceController::class, 'staffRecords']);
         Route::get('attendance/search', [Api\AttendanceController::class, 'search']);
     });
