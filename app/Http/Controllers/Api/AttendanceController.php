@@ -17,7 +17,10 @@ class AttendanceController extends Controller
         try {
             $date = $request->query('date', Carbon::today()->toDateString());
 
-            $staffs = Staff::where('is_active', true)->get(['id', 'name', 'phone', 'staff_type']);
+            // $staffs = Staff::where('is_active', true)->get(['id', 'name', 'phone', 'staff_type']);
+            $staffs = DB::table('staff')
+                ->where('is_active', true)
+                ->get(['id', 'name', 'phone', 'staff_type']);
 
             $data = $staffs->map(function ($s) use ($date) {
                 $att = StaffAttendance::where('staff_id', $s->id)->where('date', $date)->first();
