@@ -70,5 +70,10 @@ Route::prefix('admin')->group(function () {
         Route::get('/finance', [App\Http\Controllers\Admin\FinanceController::class, 'index'])->name('admin.finance.index');
         Route::get('/finance/{entry}', [App\Http\Controllers\Admin\FinanceController::class, 'show'])->name('admin.finance.show');
         Route::delete('/finance/{entry}', [App\Http\Controllers\Admin\FinanceController::class, 'destroy'])->name('admin.finance.destroy');
+
+        // Inventory management (new)
+        Route::get('/inventory', [App\Http\Controllers\Admin\InventoryController::class, 'index'])->name('admin.inventory.index');
+        Route::get('/inventory/{inventory}', [App\Http\Controllers\Admin\InventoryController::class, 'show'])->name('admin.inventory.show');
+        Route::delete('/inventory/{inventory}', [App\Http\Controllers\Admin\InventoryController::class, 'destroy'])->name('admin.inventory.destroy');
     });
 });

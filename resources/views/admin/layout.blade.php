@@ -119,6 +119,11 @@
                             <i class="fas fa-wallet me-2"></i> Finance
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains(Route::currentRouteName(), 'admin.inventory') ? 'active' : '' }}" href="{{ route('admin.inventory.index') }}">
+                            <i class="fas fa-boxes me-2"></i> Inventory
+                        </a>
+                    </li>
                     <div class="px-4 mt-4 mb-2 small text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">Resources</div>
                     <li class="nav-item">
                         <a class="nav-link {{ str_contains(Route::currentRouteName(), 'admin.document-templates') ? 'active' : '' }}" href="{{ route('admin.document-templates.index') }}">

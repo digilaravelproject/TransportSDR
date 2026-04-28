@@ -271,33 +271,15 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::delete('/{entry}',                                [Api\CashBookController::class, 'destroy']);
             Route::post('/{entry}/receipt',                          [Api\CashBookController::class, 'uploadReceipt']);
         });
-        // MODULE 9 — Inventory Management
-        Route::prefix('inventory')->group(function () {
-            // Alerts & Reports (before resource routes)
-            Route::get('alerts/low-stock',                          [Api\InventoryController::class, 'lowStockAlerts']);
-            Route::get('valuation',                                 [Api\InventoryController::class, 'valuation']);
-
-            // Categories
-            Route::get('categories',                                [Api\InventoryController::class, 'categories']);
-            Route::post('categories',                               [Api\InventoryController::class, 'createCategory']);
-
-            // Transaction document upload
-            Route::post('transactions/{transaction}/document',      [Api\InventoryController::class, 'uploadDocument']);
-
-            // Item CRUD
-            Route::get('/',                                         [Api\InventoryController::class, 'index']);
-            Route::post('/',                                        [Api\InventoryController::class, 'store']);
-            Route::get('/{item}',                                   [Api\InventoryController::class, 'show']);
-            Route::put('/{item}',                                   [Api\InventoryController::class, 'update']);
-            Route::delete('/{item}',                                [Api\InventoryController::class, 'destroy']);
-
-            // Stock operations
-            Route::post('/{item}/stock-in',                         [Api\InventoryController::class, 'stockIn']);
-            Route::post('/{item}/stock-out',                        [Api\InventoryController::class, 'stockOut']);
-            Route::post('/{item}/adjust',                           [Api\InventoryController::class, 'adjust']);
-            Route::post('/{item}/return',                           [Api\InventoryController::class, 'returnStock']);
-            Route::post('/{item}/damage',                           [Api\InventoryController::class, 'markDamaged']);
-            Route::get('/{item}/history',                           [Api\InventoryController::class, 'history']);
+        // MODULE 9 — Inventory Management (new implementation)
+        Route::prefix('inventories')->group(function () {
+            Route::get('/', [Api\InventoryNewController::class, 'index']); // list/search by type
+            Route::post('/', [Api\InventoryNewController::class, 'store']); // create item
+            Route::get('{inventory}', [Api\InventoryNewController::class, 'show']); // item with stock & recent activity
+            Route::put('{inventory}', [Api\InventoryNewController::class, 'update']);
+            Route::get('{inventory}/stocks', [Api\InventoryNewController::class, 'stocks']); // view all stocks for item
+            Route::post('{inventory}/stock-in', [Api\InventoryNewController::class, 'stockIn']);
+            Route::post('{inventory}/stock-out', [Api\InventoryNewController::class, 'stockOut']);
         });
 
         // MODULE 10 — Subscriptions

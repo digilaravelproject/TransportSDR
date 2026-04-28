@@ -22,7 +22,7 @@ use App\Services\Template\{
 
 use App\Services\CashBook\{CashBookService, LedgerService, OnlinePaymentService, QrService};
 
-use App\Services\Inventory\{InventoryService, StockService, AlertService};
+// inventory services removed - inventory module replaced by new implementation
 
 class AppServiceProvider extends ServiceProvider
 {
