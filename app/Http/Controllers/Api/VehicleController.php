@@ -15,26 +15,101 @@ class VehicleController extends Controller
     // ─────────────────────────────────────────────────
     // GET /api/v1/vehicles
     // ─────────────────────────────────────────────────
+    // public function index(Request $request)
+    // {
+    //     try {
+    //         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
+
+    //         $vehicles = Vehicle::withCount(['trips'])
+    //             ->when($request->type,         fn($q, $v) => $q->where('type', $v))
+    //             ->when($request->is_available, fn($q, $v) => $q->where('is_available', (bool)$v))
+    //             ->when($request->search,       fn($q, $v) => $q->where(function ($q) use ($v) {
+    //                 $q->where('registration_number', 'like', "%{$v}%")
+    //                     ->orWhere('type',  'like', "%{$v}%");
+    //             }))
+    //             // seating capacity range support via `capacity_range` param: lt30, 30-45, gt45
+    //             ->when($request->capacity_range, function ($q, $v) {
+    //                 if ($v === 'lt30') return $q->where('seating_capacity', '<', 30);
+    //                 if ($v === '30-45') return $q->whereBetween('seating_capacity', [30, 45]);
+    //                 if ($v === 'gt45') return $q->where('seating_capacity', '>', 45);
+    //                 return $q;
+    //             })
+    //             ->latest()
+    //             ->paginate($request->per_page ?? 20)
+    //             ->withQueryString();
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'data'    => VehicleResource::collection($vehicles),
+    //             'meta'    => [
+    //                 'total'        => $vehicles->total(),
+    //                 'current_page' => $vehicles->currentPage(),
+    //                 'last_page'    => $vehicles->lastPage(),
+    //             ],
+    //         ]);
+    //     } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'You do not have permission to view vehicles.',
+    //             'error'   => $e->getMessage(),
+    //         ], 403);
+    //     } catch (\Exception $e) {
+
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Failed to fetch vehicles. Please try again.',
+    //             'error'   => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+
     public function index(Request $request)
     {
         try {
             $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-            $vehicles = Vehicle::withCount(['trips'])
-                ->when($request->type,         fn($q, $v) => $q->where('type', $v))
-                ->when($request->is_available, fn($q, $v) => $q->where('is_available', (bool)$v))
-                ->when($request->search,       fn($q, $v) => $q->where(function ($q) use ($v) {
+            $query = Vehicle::withCount(['trips']);
+
+            // 1. Status Filter (active / maintenance / all)
+            if ($request->filled('status') && $request->status !== 'all') {
+                if ($request->status === 'active') {
+                    $query->where('is_active', true);
+                } elseif ($request->status === 'maintenance') {
+                    $query->whereHas('maintenanceLogs', fn($q) => $q->whereIn('status', ['pending', 'in_progress']));
+                }
+            }
+
+            // 2. Search Filter (Registration Number or Type)
+            if ($request->filled('search')) {
+                $v = $request->search;
+                $query->where(function ($q) use ($v) {
                     $q->where('registration_number', 'like', "%{$v}%")
-                        ->orWhere('type',  'like', "%{$v}%");
-                }))
-                // seating capacity range support via `capacity_range` param: lt30, 30-45, gt45
-                ->when($request->capacity_range, function ($q, $v) {
-                    if ($v === 'lt30') return $q->where('seating_capacity', '<', 30);
-                    if ($v === '30-45') return $q->whereBetween('seating_capacity', [30, 45]);
-                    if ($v === 'gt45') return $q->where('seating_capacity', '>', 45);
-                    return $q;
-                })
-                ->latest()
+                        ->orWhere('type', 'like', "%{$v}%");
+                });
+            }
+
+            // 3. Type Filter (Array of types)
+            if ($request->has('type') && !empty($request->type)) {
+                $types = (array) $request->type;
+                $query->whereIn('type', $types);
+            }
+
+            // 4. Capacity Range Filter
+            if ($request->filled('capacity_range')) {
+                $v = $request->capacity_range;
+                if ($v === 'lt30') $query->where('seating_capacity', '<', 30);
+                if ($v === '30-45') $query->whereBetween('seating_capacity', [30, 45]);
+                if ($v === 'gt45') $query->where('seating_capacity', '>', 45);
+            }
+
+            // 5. Availability Filter (Optional)
+            if ($request->filled('is_available')) {
+                $query->where('is_available', (bool)$request->is_available);
+            }
+
+            // Execute Query & Paginate
+            $vehicles = $query->latest()
                 ->paginate($request->per_page ?? 20)
                 ->withQueryString();
 
@@ -48,14 +123,12 @@ class VehicleController extends Controller
                 ],
             ]);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
-
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to view vehicles.',
                 'error'   => $e->getMessage(),
             ], 403);
         } catch (\Exception $e) {
-
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch vehicles. Please try again.',
@@ -89,10 +162,10 @@ class VehicleController extends Controller
                         ->from('trips')
                         ->where(function ($q) use ($checkDate) {
                             $q->whereDate('trip_date', '<=', $checkDate)
-                              ->where(function ($q2) use ($checkDate) {
-                                  $q2->whereDate('return_date', '>=', $checkDate)
-                                     ->orWhereNull('return_date');
-                              });
+                                ->where(function ($q2) use ($checkDate) {
+                                    $q2->whereDate('return_date', '>=', $checkDate)
+                                        ->orWhereNull('return_date');
+                                });
                         })
                         ->where('status', '!=', 'cancelled');
                 })
@@ -119,7 +192,6 @@ class VehicleController extends Controller
                     'last_page'    => $vehicles->lastPage(),
                 ],
             ]);
-
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
 
             return response()->json([
@@ -127,7 +199,6 @@ class VehicleController extends Controller
                 'message' => 'You do not have permission to view vehicles.',
                 'error'   => $e->getMessage(),
             ], 403);
-
         } catch (\Exception $e) {
 
             return response()->json([
@@ -187,7 +258,7 @@ class VehicleController extends Controller
             $q = $request->q ?? '';
             $vehicles = Vehicle::where(function ($s) use ($q) {
                 $s->where('registration_number', 'like', "%{$q}%")
-                  ->orWhere('type', 'like', "%{$q}%");
+                    ->orWhere('type', 'like', "%{$q}%");
             })->limit(20)->get();
 
             return response()->json(['success' => true, 'data' => $vehicles->map(fn($v) => ['id' => $v->id, 'registration_number' => $v->registration_number, 'type' => $v->type, 'seating_capacity' => $v->seating_capacity])]);
@@ -227,30 +298,154 @@ class VehicleController extends Controller
     // ─────────────────────────────────────────────────
     // POST /api/v1/vehicles
     // ─────────────────────────────────────────────────
+    // public function store(Request $request)
+    // {
+    //     try {
+    //         $this->checkRole(['superadmin', 'admin']);
+
+    //         $data = $request->validate([
+    //             'registration_number' => 'required|string|max:20|unique:vehicles,registration_number',
+    //             'type'                => 'required|string|max:100',
+    //             'seating_capacity'    => 'required|integer|min:1',
+    //             'model_year'          => 'nullable|integer|min:1900|max:2100',
+    //             'per_km_price'        => 'nullable|numeric|min:0',
+    //             'ac_price_per_km'     => 'nullable|numeric|min:0',
+    //             'rc_number'           => 'nullable|string|max:100',
+    //             'rc_expiry'           => 'nullable|date',
+    //             'insurance_number'    => 'nullable|string|max:100',
+    //             'insurance_expiry'    => 'nullable|date',
+    //             'permit_number'       => 'nullable|string|max:100',
+    //             'permit_expiry'       => 'nullable|date',
+    //         ], [
+    //             'registration_number.required' => 'Registration number is required.',
+    //             'registration_number.unique'   => 'This registration number already exists.',
+    //             'type.required'                => 'Vehicle type is required.',
+    //             'seating_capacity.required'    => 'Seating capacity is required.',
+    //             'seating_capacity.integer'     => 'Seating capacity must be a number.',
+    //         ]);
+
+    //         // Ensure tenant_id is set from authenticated user (required column)
+    //         if (Auth::check() && Auth::user()->tenant_id) {
+    //             $data['tenant_id'] = Auth::user()->tenant_id;
+    //         }
+
+    //         $vehicle = Vehicle::create($data);
+
+    //         // handle certificate files (either base64 strings or uploaded files)
+    //         $directory = "tenants/{$vehicle->tenant_id}/vehicles/{$vehicle->id}";
+
+    //         // helper closure
+    //         $saveBase64 = function ($b64, $prefix) use ($directory) {
+    //             if (! $b64) return null;
+    //             // strip data uri if present
+    //             if (Str::startsWith($b64, 'data:')) {
+    //                 $parts = explode(',', $b64, 2);
+    //                 $meta = $parts[0];
+    //                 $b64 = isset($parts[1]) ? $parts[1] : '';
+    //                 // try to pick extension
+    //                 preg_match('/data:\/(.*?);/', $meta, $m);
+    //                 $ext = isset($m[1]) && $m[1] ? explode('+', $m[1])[0] : 'pdf';
+    //             } else {
+    //                 $ext = 'pdf';
+    //             }
+    //             $decoded = base64_decode($b64);
+    //             if ($decoded === false) return null;
+    //             $fileName = $prefix . '-' . time() . '.' . $ext;
+    //             Storage::disk('public')->put("{$directory}/{$fileName}", $decoded);
+    //             return "{$directory}/{$fileName}";
+    //         };
+
+    //         // registration certificate (base64 string key: registration_certificate) or uploaded file 'registration_certificate_file'
+    //         if ($request->filled('registration_certificate')) {
+    //             $path = $saveBase64($request->input('registration_certificate'), 'registration_certificate');
+    //             if ($path) $vehicle->update(['rc_file' => $path]);
+    //         } elseif ($request->hasFile('registration_certificate_file')) {
+    //             $file = $request->file('registration_certificate_file');
+    //             $fileName = 'registration_certificate-' . time() . '.' . $file->extension();
+    //             $path = $file->storeAs($directory, $fileName, 'public');
+    //             $vehicle->update(['rc_file' => $path]);
+    //         }
+
+    //         // insurance
+    //         if ($request->filled('insurance_certificate')) {
+    //             $path = $saveBase64($request->input('insurance_certificate'), 'insurance_certificate');
+    //             if ($path) $vehicle->update(['insurance_file' => $path]);
+    //         } elseif ($request->hasFile('insurance_certificate_file')) {
+    //             $file = $request->file('insurance_certificate_file');
+    //             $fileName = 'insurance_certificate-' . time() . '.' . $file->extension();
+    //             $path = $file->storeAs($directory, $fileName, 'public');
+    //             $vehicle->update(['insurance_file' => $path]);
+    //         }
+
+    //         // permit
+    //         if ($request->filled('permit_certificate')) {
+    //             $path = $saveBase64($request->input('permit_certificate'), 'permit_certificate');
+    //             if ($path) $vehicle->update(['permit_file' => $path]);
+    //         } elseif ($request->hasFile('permit_certificate_file')) {
+    //             $file = $request->file('permit_certificate_file');
+    //             $fileName = 'permit_certificate-' . time() . '.' . $file->extension();
+    //             $path = $file->storeAs($directory, $fileName, 'public');
+    //             $vehicle->update(['permit_file' => $path]);
+    //         }
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Vehicle added successfully.',
+    //             'data'    => new VehicleResource($vehicle),
+    //         ], 201);
+    //     } catch (\Illuminate\Validation\ValidationException $e) {
+
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Validation failed.',
+    //             'errors'  => $e->errors(),
+    //         ], 422);
+    //     } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'You do not have permission to add a vehicle.',
+    //             'error'   => $e->getMessage(),
+    //         ], 403);
+    //     } catch (\Exception $e) {
+
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Something went wrong while adding the vehicle.',
+    //             'error'   => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+
     public function store(Request $request)
     {
         try {
             $this->checkRole(['superadmin', 'admin']);
 
             $data = $request->validate([
-                'registration_number' => 'required|string|max:20|unique:vehicles,registration_number',
-                'type'                => 'required|string|max:100',
-                'seating_capacity'    => 'required|integer|min:1',
-                'model_year'          => 'nullable|integer|min:1900|max:2100',
-                'per_km_price'        => 'nullable|numeric|min:0',
-                'ac_price_per_km'     => 'nullable|numeric|min:0',
-                'rc_number'           => 'nullable|string|max:100',
-                'rc_expiry'           => 'nullable|date',
-                'insurance_number'    => 'nullable|string|max:100',
-                'insurance_expiry'    => 'nullable|date',
-                'permit_number'       => 'nullable|string|max:100',
-                'permit_expiry'       => 'nullable|date',
+                'registration_number'      => 'required|string|max:20|unique:vehicles,registration_number',
+                'type'                     => 'required|string|max:100',
+                'seating_capacity'         => 'required|integer|min:1',
+                'model_year'               => 'nullable|integer|min:1900|max:2100',
+                'per_km_price'             => 'nullable|numeric|min:0',
+                'ac_price_per_km'          => 'nullable|numeric|min:0',
+                'rc_number'                => 'nullable|string|max:100',
+                'rc_expiry'                => 'nullable|date',
+                'insurance_number'         => 'nullable|string|max:100',
+                'insurance_expiry'         => 'nullable|date',
+                'permit_number'            => 'nullable|string|max:100',
+                'permit_expiry'            => 'nullable|date',
+                // Multipart file validation
+                'registration_certificate' => 'nullable|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:5120',
+                'insurance_certificate'    => 'nullable|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:5120',
+                'permit_certificate'       => 'nullable|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:5120',
             ], [
                 'registration_number.required' => 'Registration number is required.',
                 'registration_number.unique'   => 'This registration number already exists.',
                 'type.required'                => 'Vehicle type is required.',
                 'seating_capacity.required'    => 'Seating capacity is required.',
                 'seating_capacity.integer'     => 'Seating capacity must be a number.',
+                'registration_certificate.mimes' => 'RC file must be a file of type: jpeg, png, jpg, pdf, doc, docx.',
             ]);
 
             // Ensure tenant_id is set from authenticated user (required column)
@@ -260,59 +455,29 @@ class VehicleController extends Controller
 
             $vehicle = Vehicle::create($data);
 
-            // handle certificate files (either base64 strings or uploaded files)
+            // Directory path for tenant and vehicle
             $directory = "tenants/{$vehicle->tenant_id}/vehicles/{$vehicle->id}";
 
-            // helper closure
-            $saveBase64 = function ($b64, $prefix) use ($directory) {
-                if (! $b64) return null;
-                // strip data uri if present
-                if (Str::startsWith($b64, 'data:')) {
-                    $parts = explode(',', $b64, 2);
-                    $meta = $parts[0];
-                    $b64 = isset($parts[1]) ? $parts[1] : '';
-                    // try to pick extension
-                    preg_match('/data:\/(.*?);/', $meta, $m);
-                    $ext = isset($m[1]) && $m[1] ? explode('+', $m[1])[0] : 'pdf';
-                } else {
-                    $ext = 'pdf';
-                }
-                $decoded = base64_decode($b64);
-                if ($decoded === false) return null;
-                $fileName = $prefix . '-' . time() . '.' . $ext;
-                Storage::disk('public')->put("{$directory}/{$fileName}", $decoded);
-                return "{$directory}/{$fileName}";
-            };
-
-            // registration certificate (base64 string key: registration_certificate) or uploaded file 'registration_certificate_file'
-            if ($request->filled('registration_certificate')) {
-                $path = $saveBase64($request->input('registration_certificate'), 'registration_certificate');
-                if ($path) $vehicle->update(['rc_file' => $path]);
-            } elseif ($request->hasFile('registration_certificate_file')) {
-                $file = $request->file('registration_certificate_file');
-                $fileName = 'registration_certificate-' . time() . '.' . $file->extension();
+            // 1. Upload Registration Certificate (RC)
+            if ($request->hasFile('registration_certificate')) {
+                $file = $request->file('registration_certificate');
+                $fileName = 'rc-' . time() . '.' . $file->extension();
                 $path = $file->storeAs($directory, $fileName, 'public');
                 $vehicle->update(['rc_file' => $path]);
             }
 
-            // insurance
-            if ($request->filled('insurance_certificate')) {
-                $path = $saveBase64($request->input('insurance_certificate'), 'insurance_certificate');
-                if ($path) $vehicle->update(['insurance_file' => $path]);
-            } elseif ($request->hasFile('insurance_certificate_file')) {
-                $file = $request->file('insurance_certificate_file');
-                $fileName = 'insurance_certificate-' . time() . '.' . $file->extension();
+            // 2. Upload Insurance Certificate
+            if ($request->hasFile('insurance_certificate')) {
+                $file = $request->file('insurance_certificate');
+                $fileName = 'insurance-' . time() . '.' . $file->extension();
                 $path = $file->storeAs($directory, $fileName, 'public');
                 $vehicle->update(['insurance_file' => $path]);
             }
 
-            // permit
-            if ($request->filled('permit_certificate')) {
-                $path = $saveBase64($request->input('permit_certificate'), 'permit_certificate');
-                if ($path) $vehicle->update(['permit_file' => $path]);
-            } elseif ($request->hasFile('permit_certificate_file')) {
-                $file = $request->file('permit_certificate_file');
-                $fileName = 'permit_certificate-' . time() . '.' . $file->extension();
+            // 3. Upload Permit Certificate
+            if ($request->hasFile('permit_certificate')) {
+                $file = $request->file('permit_certificate');
+                $fileName = 'permit-' . time() . '.' . $file->extension();
                 $path = $file->storeAs($directory, $fileName, 'public');
                 $vehicle->update(['permit_file' => $path]);
             }
@@ -320,27 +485,118 @@ class VehicleController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Vehicle added successfully.',
-                'data'    => new VehicleResource($vehicle),
+                'data'    => new VehicleResource($vehicle->fresh()),
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
-
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed.',
                 'errors'  => $e->errors(),
             ], 422);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
-
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to add a vehicle.',
                 'error'   => $e->getMessage(),
             ], 403);
         } catch (\Exception $e) {
-
             return response()->json([
                 'success' => false,
                 'message' => 'Something went wrong while adding the vehicle.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // ─────────────────────────────────────────────────
+    // PUT /api/v1/vehicles/{id}
+    // ─────────────────────────────────────────────────
+    public function update(Request $request, Vehicle $vehicle)
+    {
+        try {
+            $this->checkRole(['superadmin', 'admin']);
+
+            $data = $request->validate([
+                'registration_number'      => 'sometimes|string|max:20|unique:vehicles,registration_number,' . $vehicle->id,
+                'type'                     => 'sometimes|string|max:100',
+                'seating_capacity'         => 'sometimes|integer|min:1',
+                'model_year'               => 'nullable|integer|min:1900|max:2100',
+                'per_km_price'             => 'nullable|numeric|min:0',
+                'ac_price_per_km'          => 'nullable|numeric|min:0',
+                'rc_number'                => 'nullable|string|max:100',
+                'rc_expiry'                => 'nullable|date',
+                'insurance_number'         => 'nullable|string|max:100',
+                'insurance_expiry'         => 'nullable|date',
+                'permit_number'            => 'nullable|string|max:100',
+                'permit_expiry'            => 'nullable|date',
+                // Multipart file validation
+                'registration_certificate' => 'nullable|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:5120',
+                'insurance_certificate'    => 'nullable|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:5120',
+                'permit_certificate'       => 'nullable|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:5120',
+                'is_available'             => 'boolean',
+                'is_active'                => 'boolean',
+            ], [
+                'registration_certificate.mimes' => 'RC file must be a file of type: jpeg, png, jpg, pdf, doc, docx.',
+                'insurance_certificate.mimes'    => 'Insurance file must be a file of type: jpeg, png, jpg, pdf, doc, docx.',
+                'permit_certificate.mimes'       => 'Permit file must be a file of type: jpeg, png, jpg, pdf, doc, docx.',
+            ]);
+
+            $vehicle->update($data);
+
+            // Directory path for tenant and vehicle
+            $directory = "tenants/{$vehicle->tenant_id}/vehicles/{$vehicle->id}";
+
+            // 1. Upload Registration Certificate (RC)
+            if ($request->hasFile('registration_certificate')) {
+                $file = $request->file('registration_certificate');
+                $fileName = 'rc-' . time() . '.' . $file->extension();
+                $path = $file->storeAs($directory, $fileName, 'public');
+                $vehicle->update(['rc_file' => $path]);
+            }
+
+            // 2. Upload Insurance Certificate
+            if ($request->hasFile('insurance_certificate')) {
+                $file = $request->file('insurance_certificate');
+                $fileName = 'insurance-' . time() . '.' . $file->extension();
+                $path = $file->storeAs($directory, $fileName, 'public');
+                $vehicle->update(['insurance_file' => $path]);
+            }
+
+            // 3. Upload Permit Certificate
+            if ($request->hasFile('permit_certificate')) {
+                $file = $request->file('permit_certificate');
+                $fileName = 'permit-' . time() . '.' . $file->extension();
+                $path = $file->storeAs($directory, $fileName, 'public');
+                $vehicle->update(['permit_file' => $path]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Vehicle updated successfully.',
+                'data'    => new VehicleResource($vehicle->fresh()),
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => $e->errors(),
+            ], 422);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to update this vehicle.',
+                'error'   => $e->getMessage(),
+            ], 403);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vehicle not found.',
+                'error'   => $e->getMessage(),
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update vehicle. Please try again.',
                 'error'   => $e->getMessage(),
             ], 500);
         }
@@ -406,121 +662,121 @@ class VehicleController extends Controller
     // ─────────────────────────────────────────────────
     // PUT /api/v1/vehicles/{id}
     // ─────────────────────────────────────────────────
-    public function update(Request $request, Vehicle $vehicle)
-    {
-        try {
-            $this->checkRole(['superadmin', 'admin']);
+    // public function update(Request $request, Vehicle $vehicle)
+    // {
+    //     try {
+    //         $this->checkRole(['superadmin', 'admin']);
 
 
-            $data = $request->validate([
-                'registration_number' => 'sometimes|string|max:20|unique:vehicles,registration_number,' . $vehicle->id,
-                'type'                => 'sometimes|string|max:100',
-                'seating_capacity'    => 'sometimes|integer|min:1',
-                'model_year'          => 'nullable|integer|min:1900|max:2100',
-                'per_km_price'        => 'nullable|numeric|min:0',
-                'ac_price_per_km'     => 'nullable|numeric|min:0',
-                'rc_number'           => 'nullable|string|max:100',
-                'rc_expiry'           => 'nullable|date',
-                'insurance_number'    => 'nullable|string|max:100',
-                'insurance_expiry'    => 'nullable|date',
-                'permit_number'       => 'nullable|string|max:100',
-                'permit_expiry'       => 'nullable|date',
-                // certificate uploads (optional) - accept upload or base64 keys
-                'registration_certificate_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-                'insurance_certificate_file'    => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-                'permit_certificate_file'       => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-                'is_available'        => 'boolean',
-                'is_active'           => 'boolean',
-            ]);
+    //         $data = $request->validate([
+    //             'registration_number' => 'sometimes|string|max:20|unique:vehicles,registration_number,' . $vehicle->id,
+    //             'type'                => 'sometimes|string|max:100',
+    //             'seating_capacity'    => 'sometimes|integer|min:1',
+    //             'model_year'          => 'nullable|integer|min:1900|max:2100',
+    //             'per_km_price'        => 'nullable|numeric|min:0',
+    //             'ac_price_per_km'     => 'nullable|numeric|min:0',
+    //             'rc_number'           => 'nullable|string|max:100',
+    //             'rc_expiry'           => 'nullable|date',
+    //             'insurance_number'    => 'nullable|string|max:100',
+    //             'insurance_expiry'    => 'nullable|date',
+    //             'permit_number'       => 'nullable|string|max:100',
+    //             'permit_expiry'       => 'nullable|date',
+    //             // certificate uploads (optional) - accept upload or base64 keys
+    //             'registration_certificate_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+    //             'insurance_certificate_file'    => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+    //             'permit_certificate_file'       => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+    //             'is_available'        => 'boolean',
+    //             'is_active'           => 'boolean',
+    //         ]);
 
-            $vehicle->update($data);
+    //         $vehicle->update($data);
 
-            // handle certificate updates similar to store
-            $directory = "tenants/{$vehicle->tenant_id}/vehicles/{$vehicle->id}";
+    //         // handle certificate updates similar to store
+    //         $directory = "tenants/{$vehicle->tenant_id}/vehicles/{$vehicle->id}";
 
-            $saveBase64 = function ($b64, $prefix) use ($directory) {
-                if (! $b64) return null;
-                if (Str::startsWith($b64, 'data:')) {
-                    $parts = explode(',', $b64, 2);
-                    $meta = $parts[0];
-                    $b64 = isset($parts[1]) ? $parts[1] : '';
-                    preg_match('/data:\/(.*?);/', $meta, $m);
-                    $ext = isset($m[1]) && $m[1] ? explode('+', $m[1])[0] : 'pdf';
-                } else {
-                    $ext = 'pdf';
-                }
-                $decoded = base64_decode($b64);
-                if ($decoded === false) return null;
-                $fileName = $prefix . '-' . time() . '.' . $ext;
-                Storage::disk('public')->put("{$directory}/{$fileName}", $decoded);
-                return "{$directory}/{$fileName}";
-            };
+    //         $saveBase64 = function ($b64, $prefix) use ($directory) {
+    //             if (! $b64) return null;
+    //             if (Str::startsWith($b64, 'data:')) {
+    //                 $parts = explode(',', $b64, 2);
+    //                 $meta = $parts[0];
+    //                 $b64 = isset($parts[1]) ? $parts[1] : '';
+    //                 preg_match('/data:\/(.*?);/', $meta, $m);
+    //                 $ext = isset($m[1]) && $m[1] ? explode('+', $m[1])[0] : 'pdf';
+    //             } else {
+    //                 $ext = 'pdf';
+    //             }
+    //             $decoded = base64_decode($b64);
+    //             if ($decoded === false) return null;
+    //             $fileName = $prefix . '-' . time() . '.' . $ext;
+    //             Storage::disk('public')->put("{$directory}/{$fileName}", $decoded);
+    //             return "{$directory}/{$fileName}";
+    //         };
 
-            if ($request->filled('registration_certificate')) {
-                $path = $saveBase64($request->input('registration_certificate'), 'registration_certificate');
-                if ($path) $vehicle->update(['rc_file' => $path]);
-            } elseif ($request->hasFile('registration_certificate_file')) {
-                $file = $request->file('registration_certificate_file');
-                $fileName = 'registration_certificate-' . time() . '.' . $file->extension();
-                $path = $file->storeAs($directory, $fileName, 'public');
-                $vehicle->update(['rc_file' => $path]);
-            }
+    //         if ($request->filled('registration_certificate')) {
+    //             $path = $saveBase64($request->input('registration_certificate'), 'registration_certificate');
+    //             if ($path) $vehicle->update(['rc_file' => $path]);
+    //         } elseif ($request->hasFile('registration_certificate_file')) {
+    //             $file = $request->file('registration_certificate_file');
+    //             $fileName = 'registration_certificate-' . time() . '.' . $file->extension();
+    //             $path = $file->storeAs($directory, $fileName, 'public');
+    //             $vehicle->update(['rc_file' => $path]);
+    //         }
 
-            if ($request->filled('insurance_certificate')) {
-                $path = $saveBase64($request->input('insurance_certificate'), 'insurance_certificate');
-                if ($path) $vehicle->update(['insurance_file' => $path]);
-            } elseif ($request->hasFile('insurance_certificate_file')) {
-                $file = $request->file('insurance_certificate_file');
-                $fileName = 'insurance_certificate-' . time() . '.' . $file->extension();
-                $path = $file->storeAs($directory, $fileName, 'public');
-                $vehicle->update(['insurance_file' => $path]);
-            }
+    //         if ($request->filled('insurance_certificate')) {
+    //             $path = $saveBase64($request->input('insurance_certificate'), 'insurance_certificate');
+    //             if ($path) $vehicle->update(['insurance_file' => $path]);
+    //         } elseif ($request->hasFile('insurance_certificate_file')) {
+    //             $file = $request->file('insurance_certificate_file');
+    //             $fileName = 'insurance_certificate-' . time() . '.' . $file->extension();
+    //             $path = $file->storeAs($directory, $fileName, 'public');
+    //             $vehicle->update(['insurance_file' => $path]);
+    //         }
 
-            if ($request->filled('permit_certificate')) {
-                $path = $saveBase64($request->input('permit_certificate'), 'permit_certificate');
-                if ($path) $vehicle->update(['permit_file' => $path]);
-            } elseif ($request->hasFile('permit_certificate_file')) {
-                $file = $request->file('permit_certificate_file');
-                $fileName = 'permit_certificate-' . time() . '.' . $file->extension();
-                $path = $file->storeAs($directory, $fileName, 'public');
-                $vehicle->update(['permit_file' => $path]);
-            }
+    //         if ($request->filled('permit_certificate')) {
+    //             $path = $saveBase64($request->input('permit_certificate'), 'permit_certificate');
+    //             if ($path) $vehicle->update(['permit_file' => $path]);
+    //         } elseif ($request->hasFile('permit_certificate_file')) {
+    //             $file = $request->file('permit_certificate_file');
+    //             $fileName = 'permit_certificate-' . time() . '.' . $file->extension();
+    //             $path = $file->storeAs($directory, $fileName, 'public');
+    //             $vehicle->update(['permit_file' => $path]);
+    //         }
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Vehicle updated successfully.',
-                'data'    => new VehicleResource($vehicle->fresh()),
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Vehicle updated successfully.',
+    //             'data'    => new VehicleResource($vehicle->fresh()),
+    //         ]);
+    //     } catch (\Illuminate\Validation\ValidationException $e) {
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed.',
-                'errors'  => $e->errors(),
-            ], 422);
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Validation failed.',
+    //             'errors'  => $e->errors(),
+    //         ], 422);
+    //     } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
 
-            return response()->json([
-                'success' => false,
-                'message' => 'You do not have permission to update this vehicle.',
-                'error'   => $e->getMessage(),
-            ], 403);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'You do not have permission to update this vehicle.',
+    //             'error'   => $e->getMessage(),
+    //         ], 403);
+    //     } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Vehicle not found.',
-                'error'   => $e->getMessage(),
-            ], 404);
-        } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Vehicle not found.',
+    //             'error'   => $e->getMessage(),
+    //         ], 404);
+    //     } catch (\Exception $e) {
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update vehicle. Please try again.',
-                'error'   => $e->getMessage(),
-            ], 500);
-        }
-    }
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Failed to update vehicle. Please try again.',
+    //             'error'   => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
 
     // ─────────────────────────────────────────────────
     // DELETE /api/v1/vehicles/{id}
