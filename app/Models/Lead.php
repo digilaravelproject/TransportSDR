@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Customer;
+use Carbon\Carbon;
 class Lead extends Model
 {
     use SoftDeletes;
@@ -24,6 +26,9 @@ class Lead extends Model
         'advance_amount',
         'pending_amount',
         'status',
+        'quotation_path',
+        'vehicle_id',
+        'driver_id',
     ];
 
     protected $casts = [
@@ -44,5 +49,91 @@ class Lead extends Model
                 $lead->status = 'pending';
             }
         });
+    }
+
+    public function notes()
+    {
+        return $this->hasMany(LeadNote::class)->orderBy('created_at', 'desc');
+    }
+
+    public function followups()
+    {
+        return $this->hasMany(LeadFollowUp::class)->orderBy('reminder_at', 'desc');
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class, 'customer_id');
+    }
+
+    public function vehicle()
+    {
+        return $this->belongsTo(\App\Models\Vehicle::class, 'vehicle_id');
+    }
+
+    public function driver()
+    {
+        return $this->belongsTo(\App\Models\Staff::class, 'driver_id');
+    }
+
+    public function expenses()
+    {
+        return $this->hasMany(LeadExpense::class)->orderBy('created_at', 'desc');
+    }
+
+    public function dutySheets()
+    {
+        return $this->hasMany(LeadDutySheet::class)->orderBy('created_at', 'desc');
+    }
+
+    // Provide compatibility accessors used by QuotationService
+    public function getDestinationPointsAttribute()
+    {
+        return $this->points;
+    }
+
+    public function getQuotedAmountAttribute()
+    {
+        return $this->total_amount ?? 0;
+    }
+
+    public function getDiscountAttribute()
+    {
+        return $this->attributes['discount'] ?? 0;
+    }
+
+    public function getIsGstAttribute()
+    {
+        return (bool) ($this->attributes['is_gst'] ?? false);
+    }
+
+    public function getGstPercentAttribute()
+    {
+        return $this->attributes['gst_percent'] ?? 0;
+    }
+
+    public function getTaxAmountAttribute()
+    {
+        return $this->attributes['tax_amount'] ?? 0;
+    }
+
+    public function getTotalWithTaxAttribute()
+    {
+        return $this->attributes['total_with_tax'] ?? ($this->total_amount ?? 0);
+    }
+
+    public function getNumberOfVehiclesAttribute()
+    {
+        return $this->attributes['number_of_vehicles'] ?? 1;
+    }
+
+    public function getReturnDateAttribute($value)
+    {
+        return $value ? Carbon::parse($value) : null;
+    }
+
+    public function getCustomerEmailAttribute()
+    {
+        return $this->attributes['customer_email'] ?? null;
     }
 }

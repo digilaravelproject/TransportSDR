@@ -135,6 +135,11 @@
                             <i class="fas fa-map-marked-alt me-2"></i> Routes
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains(Route::currentRouteName(), 'admin.leads') ? 'active' : '' }}" href="{{ route('admin.leads.index') }}">
+                            <i class="fas fa-envelope-open-text me-2"></i> Leads
+                        </a>
+                    </li>
                     <li class="nav-item mt-4 px-3">
                         <form method="POST" action="{{ route('admin.logout') }}">
                             @csrf

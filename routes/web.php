@@ -62,6 +62,10 @@ Route::prefix('admin')->group(function () {
 
         // Manage Routes
         Route::resource('/routes', App\Http\Controllers\Admin\ManageRoutesController::class, ['as' => 'admin']);
+        // Leads management (Admin)
+        Route::resource('/leads', App\Http\Controllers\Admin\AdminLeadController::class, ['as' => 'admin']);
+        Route::post('/leads/{lead}/assign-vehicle', [App\Http\Controllers\Admin\AdminLeadController::class, 'assignVehicle'])->name('admin.leads.assign-vehicle');
+        Route::post('/leads/{lead}/assign-driver', [App\Http\Controllers\Admin\AdminLeadController::class, 'assignDriver'])->name('admin.leads.assign-driver');
         Route::post('/routes/{route}/add-vehicle', [App\Http\Controllers\Admin\ManageRoutesController::class, 'addVehicle'])->name('admin.routes.add-vehicle');
         Route::post('/routes/{route}/remove-vehicle', [App\Http\Controllers\Admin\ManageRoutesController::class, 'removeVehicle'])->name('admin.routes.remove-vehicle');
         // Manage Modules

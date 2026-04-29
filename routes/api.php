@@ -92,10 +92,32 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::put('/{lead}',                [Api\LeadController::class, 'update']);
             Route::delete('/{lead}',             [Api\LeadController::class, 'destroy']);
             Route::patch('/{lead}/status',       [Api\LeadController::class, 'updateStatus']);
+            Route::get('/{lead}/notes',          [Api\LeadController::class, 'notes']);
+            Route::post('/{lead}/notes',         [Api\LeadController::class, 'addNote']);
+            Route::get('/{lead}/followups',     [Api\LeadController::class, 'followups']);
+            Route::post('/{lead}/followups',    [Api\LeadController::class, 'addFollowup']);
+            // Vehicle / Driver assignment + lists
+            Route::get('vehicles/list',          [Api\LeadController::class, 'vehicleList']);
+            Route::post('{lead}/assign-vehicle', [Api\LeadController::class, 'assignVehicle']);
+            Route::get('drivers/list',           [Api\LeadController::class, 'driverList']);
+            Route::post('{lead}/assign-driver',  [Api\LeadController::class, 'assignDriver']);
+
+            // Expenses & Duty sheets
+            Route::get('{lead}/expenses',        [Api\LeadController::class, 'expenses']);
+            Route::post('{lead}/expenses',       [Api\LeadController::class, 'addExpense']);
+
+            Route::get('{lead}/duty-sheets',     [Api\LeadController::class, 'dutySheets']);
+            Route::post('{lead}/duty-sheets',    [Api\LeadController::class, 'uploadDutySheet']);
             Route::post('/{lead}/convert',       [Api\LeadController::class, 'convert']);
             Route::get('/{lead}/quotation',    [Api\LeadController::class, 'quotation']);
             Route::get('/{lead}/bill',         [Api\LeadController::class, 'bill']);
         });
+
+        // Notifications
+        Route::get('notifications', [Api\NotificationController::class, 'index']);
+
+        // Home stats
+        Route::get('home/stats', [Api\HomeController::class, 'stats']);
 
         // MODULE 3 — Vehicle Maintenance — routes update karo
         // Additional vehicle endpoints
@@ -114,12 +136,15 @@ Route::middleware(['auth:sanctum', 'tenant'])
 
                 Route::post('activity/service', [Api\VehicleActivityController::class, 'storeService']);
                 Route::get('activity/service',  [Api\VehicleActivityController::class, 'serviceHistory']);
+                Route::get('activity/service/{service}', [Api\VehicleActivityController::class, 'showService']);
+                Route::post('activity/service/{service}/payment', [Api\VehicleActivityController::class, 'payService']);
 
                 Route::post('activity/repair',  [Api\VehicleActivityController::class, 'storeRepair']);
                 Route::get('activity/repair',   [Api\VehicleActivityController::class, 'repairHistory']);
 
                 // Documents and timeline
                 Route::get('documents',         [Api\VehicleActivityController::class, 'documents']);
+                Route::post('documents',        [Api\VehicleActivityController::class, 'uploadDocument']);
                 Route::get('timeline',          [Api\VehicleActivityController::class, 'timeline']);
 
                 // Keep vehicle report and gps endpoints
@@ -232,8 +257,7 @@ Route::middleware(['auth:sanctum', 'tenant'])
         // New finance APIs (income/expense) are under /finance
         Route::prefix('finance')->group(function () {
             Route::get('/', [Api\FinanceController::class, 'index']);
-            Route::post('income', [Api\FinanceController::class, 'storeIncome']);
-            Route::post('expense', [Api\FinanceController::class, 'storeExpense']);
+            Route::post('/', [Api\FinanceController::class, 'storeIncomeExpense']);
             Route::get('{entry}', [Api\FinanceController::class, 'show']);
         });
 

@@ -11,7 +11,13 @@ class QuotationService
     // ── From Lead ──────────────────────────────────────
     public function generateFromLead(Lead $lead, Tenant $tenant): array
     {
-        $lead->loadMissing(['customer']);
+        $lead->loadMissing(['customer', 'notes']);
+
+        // Prepare notes as a plain string for the PDF view (Blade expects a string)
+        $notesText = '';
+        if ($lead->relationLoaded('notes')) {
+            $notesText = $lead->notes->pluck('note')->filter()->implode("\n");
+        }
 
         $result = $this->generatePdf(
             $tenant->id,
@@ -49,7 +55,7 @@ class QuotationService
                     'total_with_tax'  => $lead->total_with_tax,
                     'advance_required' => $lead->advance_amount,
                 ],
-                'notes'      => $lead->notes,
+                'notes'      => $notesText,
             ],
             "quotation-{$lead->lead_number}.pdf"
         );

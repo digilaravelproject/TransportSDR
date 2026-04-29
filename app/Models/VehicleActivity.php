@@ -18,6 +18,7 @@ class VehicleActivity extends Model
         'title',
         'activity_date',
         'amount',
+        'amount_paid',
         'quantity',
         'price_per_unit',
         'station_name',

@@ -116,6 +116,70 @@ class VehicleActivityController extends Controller
         return response()->json(['success' => true, 'data' => $p->items(), 'meta' => ['total' => $p->total(), 'current_page' => $p->currentPage()]]);
     }
 
+    // GET /api/v1/vehicles/{vehicle}/activity/service/{service}
+    public function showService(Request $request, Vehicle $vehicle, $serviceId)
+    {
+        $this->checkRole(['superadmin', 'admin', 'operator', 'accountant', 'driver']);
+
+        $activity = VehicleActivity::where('vehicle_id', $vehicle->id)
+            ->where('id', $serviceId)
+            ->where('activity_type', 'service')
+            ->firstOrFail();
+
+        $activity->receipt_url = $activity->receipt_path ? asset("storage/{$activity->receipt_path}") : null;
+
+        return response()->json(['success' => true, 'data' => $activity]);
+    }
+
+    // POST /api/v1/vehicles/{vehicle}/activity/service/{service}/payment
+    public function payService(Request $request, Vehicle $vehicle, $serviceId)
+    {
+        $this->checkRole(['superadmin', 'admin', 'operator', 'accountant', 'driver']);
+
+        $v = Validator::make($request->all(), [
+            'amount' => 'required|numeric|min:0.01',
+            'payment_date' => 'nullable|date',
+            'receipt' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'notes' => 'nullable|string',
+        ]);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $activity = VehicleActivity::where('vehicle_id', $vehicle->id)
+            ->where('id', $serviceId)
+            ->where('activity_type', 'service')
+            ->firstOrFail();
+
+        $data = $v->validated();
+        $amount = (float) $data['amount'];
+
+        // store receipt (if any) into meta.payments
+        $receiptPath = null;
+        if ($request->hasFile('receipt')) {
+            $tenantId = Auth::user()->tenant_id ?? null;
+            $dir = "tenants/{$tenantId}/vehicles/{$vehicle->id}/activities/payments";
+            $receiptPath = $request->file('receipt')->store($dir, 'public');
+        }
+
+        $meta = $activity->meta ?? [];
+        $payments = $meta['payments'] ?? [];
+        $payments[] = [
+            'amount' => $amount,
+            'paid_at' => $data['payment_date'] ?? now()->toDateTimeString(),
+            'paid_by' => Auth::id(),
+            'notes' => $data['notes'] ?? null,
+            'receipt_path' => $receiptPath,
+        ];
+        $meta['payments'] = $payments;
+
+        $activity->meta = $meta;
+        $activity->amount_paid = (float) ($activity->amount_paid ?? 0) + $amount;
+        $activity->save();
+
+        $due = (float) $activity->amount - (float) $activity->amount_paid;
+
+        return response()->json(['success' => true, 'message' => 'Payment recorded', 'data' => ['amount_paid' => $activity->amount_paid, 'due' => max(0, $due)]]);
+    }
+
     // POST /api/v1/vehicles/{vehicle}/activity/repair
     public function storeRepair(Request $request, Vehicle $vehicle)
     {
@@ -173,57 +237,82 @@ class VehicleActivityController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        $docs = collect();
+        try {
+            $docs = VehicleDocument::where('vehicle_id', $vehicle->id)
+                ->orderBy('id', 'desc')
+                ->get()
+                ->map(function ($doc) {
+                    return [
+                        'id' => $doc->id,
+                        'vehicle_id' => $doc->vehicle_id,
+                        'type' => $doc->document_type,
+                        'number' => $doc->document_number,
+                        'issue_date' => $doc->issue_date
+                            ? \Carbon\Carbon::parse($doc->issue_date)->format('d-m-Y')
+                            : null,
+                        'expiry_date' => $doc->expiry_date
+                            ? \Carbon\Carbon::parse($doc->expiry_date)->format('d-m-Y')
+                            : null,
+                        'alert_before_days' => $doc->alert_before_days,
+                        'notes' => $doc->notes,
+                        'file_url' => $doc->document_path
+                            ? asset("storage/{$doc->document_path}")
+                            : null,
+                        'created_at' => $doc->created_at
+                            ? $doc->created_at->format('d-m-Y H:i:s')
+                            : null,
+                    ];
+                });
 
-        // RC Document
-        if ($vehicle->rc_number || $vehicle->rc_expiry || $vehicle->rc_file) {
-            $docs->push([
-                'id' => $vehicle->id,
-                'type' => 'RC',
-                'number' => $vehicle->rc_number,
-                'expiry_date' => $vehicle->rc_expiry
-                    ? \Carbon\Carbon::parse($vehicle->rc_expiry)->format('d-m-Y')
-                    : null,
-                'file_url' => $vehicle->rc_file
-                    ? asset("storage/{$vehicle->rc_file}")
-                    : null,
+            return response()->json([
+                'success' => true,
+                'data' => $docs->values()
             ]);
-        }
 
-        // Insurance Document
-        if ($vehicle->insurance_number || $vehicle->insurance_expiry || $vehicle->insurance_file) {
-            $docs->push([
-                'id' => $vehicle->id,
-                'type' => 'Insurance',
-                'number' => $vehicle->insurance_number,
-                'expiry_date' => $vehicle->insurance_expiry
-                    ? \Carbon\Carbon::parse($vehicle->insurance_expiry)->format('d-m-Y')
-                    : null,
-                'file_url' => $vehicle->insurance_file
-                    ? asset("storage/{$vehicle->insurance_file}")
-                    : null,
-            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch documents',
+                'error' => $e->getMessage()
+            ], 500);
         }
+    }
 
-        // Permit Document
-        if ($vehicle->permit_number || $vehicle->permit_expiry || $vehicle->permit_file) {
-            $docs->push([
-                'id' => $vehicle->id,
-                'type' => 'Permit',
-                'number' => $vehicle->permit_number,
-                'expiry_date' => $vehicle->permit_expiry
-                    ? \Carbon\Carbon::parse($vehicle->permit_expiry)->format('d-m-Y')
-                    : null,
-                'file_url' => $vehicle->permit_file
-                    ? asset("storage/{$vehicle->permit_file}")
-                    : null,
-            ]);
-        }
+    // POST /api/v1/vehicles/{vehicle}/documents
+    public function uploadDocument(Request $request, Vehicle $vehicle)
+    {
+        $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        return response()->json([
-            'success' => true,
-            'data' => $docs->values()
+        $v = Validator::make($request->all(), [
+            'document_type' => 'required|string|max:100',
+            'document_number' => 'nullable|string|max:255',
+            'issue_date' => 'nullable|date',
+            'expiry_date' => 'nullable|date',
+            'alert_before_days' => 'nullable|integer|min:0',
+            'file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'notes' => 'nullable|string',
         ]);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $data = $v->validated();
+        $tenantId = Auth::user()->tenant_id ?? null;
+        $dir = "tenants/{$tenantId}/vehicles/{$vehicle->id}/documents";
+        $path = $request->file('file')->store($dir, 'public');
+
+        $doc = VehicleDocument::create([
+            'tenant_id' => $tenantId,
+            'vehicle_id' => $vehicle->id,
+            'document_type' => $data['document_type'],
+            'document_number' => $data['document_number'] ?? null,
+            'document_path' => $path,
+            'issue_date' => $data['issue_date'] ?? null,
+            'expiry_date' => $data['expiry_date'] ?? null,
+            'alert_before_days' => $data['alert_before_days'] ?? 0,
+            'notes' => $data['notes'] ?? null,
+            'created_by' => Auth::id(),
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Document uploaded', 'data' => $doc], 201);
     }
 
     // GET /api/v1/vehicles/{vehicle}/timeline

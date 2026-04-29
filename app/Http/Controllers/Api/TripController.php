@@ -7,12 +7,13 @@ use App\Http\Requests\Trip\{StoreTripRequest, UpdateTripRequest, AddPaymentReque
 use App\Http\Resources\TripResource;
 use App\Models\Trip;
 use App\Services\TripService;
+use App\Services\Notification\NotificationService;
 use Illuminate\Http\Request;
 use Exception;
 
 class TripController extends Controller
 {
-    public function __construct(private TripService $service) {}
+    public function __construct(private TripService $service, private NotificationService $notificationService) {}
 
     public function index(Request $request)
     {
@@ -65,6 +66,9 @@ class TripController extends Controller
 
         try {
             $trip = $this->service->store($request->validated());
+            try {
+                $this->notificationService->create('New Trip: ' . $trip->customer_name, "Trip {$trip->trip_number} created", ['trip_id' => $trip->id], 'trip', 'high');
+            } catch (\Throwable $e) {}
 
             return response()->json([
                 'success' => true,
@@ -144,6 +148,10 @@ class TripController extends Controller
         try {
             $trip->delete();
 
+            try {
+                $this->notificationService->create('Trip Deleted', "Trip {$trip->trip_number} deleted", ['trip_id' => $trip->id], 'trip', 'medium');
+            } catch (\Throwable $e) {}
+
             return response()->json([
                 'success' => true,
                 'message' => 'Trip deleted successfully.',
@@ -195,8 +203,16 @@ class TripController extends Controller
         try {
             if ($data['status'] === 'completed') {
                 $trip = $this->service->complete($trip);
+                try {
+                    $this->notificationService->create('Trip Completed', "Trip {$trip->trip_number} completed", ['trip_id' => $trip->id], 'trip', 'high');
+                } catch (\Throwable $e) {}
             } else {
                 $trip->update($data);
+                if ($data['status'] === 'ongoing') {
+                    try {
+                        $this->notificationService->create('Trip Started', "Trip {$trip->trip_number} started", ['trip_id' => $trip->id], 'trip', 'high');
+                    } catch (\Throwable $e) {}
+                }
             }
 
             return response()->json([
@@ -219,6 +235,10 @@ class TripController extends Controller
 
         try {
             $payment = $this->service->addPayment($trip, $request->validated());
+
+            try {
+                $this->notificationService->create('Payment Received', "Payment of ₹{$payment->amount} for {$trip->trip_number}", ['trip_id' => $trip->id, 'amount' => $payment->amount], 'payment', 'high');
+            } catch (\Throwable $e) {}
 
             return response()->json([
                 'success' => true,

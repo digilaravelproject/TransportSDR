@@ -7,12 +7,13 @@ use Illuminate\Http\Request;
 use App\Models\CashBookEntry;
 use Dompdf\Dompdf;
 use Illuminate\Support\Str;
+use App\Services\Notification\NotificationService;
 
 class FinanceController extends Controller
 {
     private array $allowedPaymentModes = ['cash','upi','bank_transfer','cheque','other'];
 
-    public function __construct()
+    public function __construct(private NotificationService $notificationService)
     {
         // middleware can be applied as needed
     }
@@ -62,14 +63,14 @@ class FinanceController extends Controller
         ]);
     }
 
-    public function storeIncome(Request $request)
+    public function storeIncomeExpense(Request $request)
     {
-        return $this->storeEntry($request, 'income');
-    }
+        // Validate type to ensure only allowed values
+        $request->validate([
+            'type' => 'required|in:income,expense'
+        ]);
 
-    public function storeExpense(Request $request)
-    {
-        return $this->storeEntry($request, 'expense');
+        return $this->storeEntry($request, $request->type);
     }
 
     protected function storeEntry(Request $request, string $type)
@@ -110,6 +111,14 @@ class FinanceController extends Controller
         } catch (\Exception $e) {
             // ignore pdf errors but log if needed
         }
+
+        try {
+            $title = $type === 'income' ? 'Payment Recorded' : 'Expense Recorded';
+            $msg = $type === 'income'
+                ? "Payment of ₹{$entry->amount} recorded."
+                : "Expense of ₹{$entry->amount} recorded.";
+            $this->notificationService->create($title, $msg, ['entry_id' => $entry->id, 'type' => $type], 'finance', $type === 'income' ? 'high' : 'low');
+        } catch (\Throwable $e) {}
 
         return response()->json(['success' => true, 'data' => $entry], 201);
     }
