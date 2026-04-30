@@ -14,6 +14,19 @@ Route::get('/', function () {
 });
 Route::prefix('admin')->name('admin.')->group(function () {
 
+    // Main Staff CRUD
+    Route::resource('staff', App\Http\Controllers\Admin\StaffController::class);
+
+    // Extra Web Actions for Staff Profile Page
+    Route::prefix('staff/{staff}')->name('staff.')->group(function () {
+        Route::post('attendance', [App\Http\Controllers\Admin\StaffController::class, 'markAttendance'])->name('attendance');
+        Route::post('advance', [App\Http\Controllers\Admin\StaffController::class, 'giveAdvance'])->name('advance');
+        Route::post('document', [App\Http\Controllers\Admin\StaffController::class, 'uploadDocument'])->name('document');
+        Route::post('toggle-status', [App\Http\Controllers\Admin\StaffController::class, 'toggleStatus'])->name('toggle-status');
+    });
+});
+Route::prefix('admin')->name('admin.')->group(function () {
+
     Route::resource('template-categories', TemplateCategoryController::class);
     Route::resource('document-templates', DocumentTemplateController::class);
 
@@ -55,7 +68,7 @@ Route::prefix('admin')->group(function () {
         Route::post('/subscriptions/{subscription}/cancel', [ManageSubscriptionsController::class, 'cancel'])->name('admin.subscriptions.cancel');
         Route::post('/subscriptions/{subscription}/renew', [ManageSubscriptionsController::class, 'renew'])->name('admin.subscriptions.renew');
         Route::resource('/subscriptions', ManageSubscriptionsController::class, ['as' => 'admin']);
-        
+
         Route::resource('/shifts', ManageShiftsController::class, ['as' => 'admin']);
         Route::post('/shifts/{shift}/add-driver', [ManageShiftsController::class, 'addDriver'])->name('admin.shifts.add-driver');
         Route::post('/shifts/{shift}/remove-driver', [ManageShiftsController::class, 'removeDriver'])->name('admin.shifts.remove-driver');

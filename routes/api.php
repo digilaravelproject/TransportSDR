@@ -155,7 +155,7 @@ Route::middleware(['auth:sanctum', 'tenant'])
 
         // MODULE 4 — Staff Management
 
-        Route::get('roles', [Api\RoleController::class, 'indexrole']);
+        // Route::get('roles', [Api\RoleController::class, 'indexrole']);
 
         // Staff Module
 
