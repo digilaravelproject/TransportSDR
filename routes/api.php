@@ -213,6 +213,7 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::post('/', [Api\VendorController::class, 'store']);
             Route::get('/', [Api\VendorController::class, 'index']);
             Route::get('/{vendor}', [Api\VendorController::class, 'show']);
+            Route::patch('/{vendor}/toggle-status', [Api\VendorController::class, 'toggleStatus']);
             Route::match(['put', 'patch'], '/{vendor}', [Api\VendorController::class, 'update']);
             Route::get('/{vendor}/available-vehicles', [Api\VendorController::class, 'availableVehicles']);
             Route::post('/{vendor}/assign-vehicles', [Api\VendorController::class, 'assignVehicles']);

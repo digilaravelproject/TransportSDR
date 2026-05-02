@@ -56,6 +56,32 @@ class VendorController extends Controller
         return response()->json(['success' => true, 'data' => $p->items(), 'meta' => ['total' => $p->total(), 'current_page' => $p->currentPage()]]);
     }
 
+    public function toggleStatus($vendorId)
+    {
+        try {
+            $vendor = Vendor::findOrFail($vendorId);
+
+            // Toggle status
+            $vendor->status = !$vendor->status;
+            $vendor->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Vendor status updated successfully',
+                'data' => [
+                    'vendor_id' => $vendor->id,
+                    'status' => $vendor->status
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     // PUT/PATCH /api/v1/vendors/{vendor}
     public function update(Request $request, Vendor $vendor)
     {
