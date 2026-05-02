@@ -359,14 +359,69 @@ class VehicleActivityController extends Controller
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
         $perPage = $request->integer('per_page', 20);
 
+        // Base Query (activity_type = 'repair')
         $q = \DB::table('vehicle_activities')
             ->where('vehicle_id', $vehicle->id)
-            ->where('activity_type', 'repair')
-            ->orderBy('activity_date', 'desc');
+            ->where('activity_type', 'repair');
 
+        // 1. Date Range Search (Supports start_date/end_date OR from/to)
+        $startDate = $request->start_date ?? $request->from;
+        $endDate   = $request->end_date ?? $request->to;
+
+        if ($startDate && $endDate) {
+            $q->whereBetween('activity_date', [$startDate, $endDate]);
+        } elseif ($startDate) {
+            $q->whereDate('activity_date', '>=', $startDate);
+        } elseif ($endDate) {
+            $q->whereDate('activity_date', '<=', $endDate);
+        }
+
+        // 2. Status Search (Paid / Pending)
+        if ($request->filled('status')) {
+            if ($request->status === 'paid') {
+                $q->whereRaw('COALESCE(amount_paid, 0) >= amount');
+            } elseif ($request->status === 'pending') {
+                $q->whereRaw('COALESCE(amount_paid, 0) < amount');
+            }
+        }
+
+        // --- Calculations Start (Date Filter ke basis par) ---
+        $totalsQuery = clone $q;
+        $totalAmount = $totalsQuery->sum('amount');
+        $totalPaid   = $totalsQuery->sum('amount_paid');
+        $totalDue    = $totalAmount - $totalPaid;
+        // --- Calculations End ---
+
+        // Sorting & Pagination
+        $q->orderBy('activity_date', 'desc');
         $p = $q->paginate($perPage);
 
-        return response()->json(['success' => true, 'data' => $p->items(), 'meta' => ['total' => $p->total(), 'current_page' => $p->currentPage()]]);
+        $data = collect($p->items())->map(function ($item) {
+            // Receipt path me base URL add karne ka logic
+            if (!empty($item->receipt_path)) {
+                if (!str_starts_with($item->receipt_path, 'http')) {
+                    $item->receipt_path = asset('storage/' . $item->receipt_path);
+                }
+            }
+
+            // Individual row due amount
+            $item->due_amount = number_format((float)$item->amount - (float)$item->amount_paid, 2, '.', '');
+
+            return $item;
+        });
+
+        return response()->json([
+            'success'      => true,
+            'base_url'     => asset('storage'),
+            'total_amount' => round($totalAmount, 2),
+            'pay_amount'   => round($totalPaid, 2),
+            'due_amount'   => round($totalDue, 2),
+            'data'         => $data,
+            'meta'         => [
+                'total'        => $p->total(),
+                'current_page' => $p->currentPage()
+            ]
+        ]);
     }
 
     // GET /api/v1/vehicles/{vehicle}/documents
@@ -405,7 +460,6 @@ class VehicleActivityController extends Controller
                 'success' => true,
                 'data' => $docs->values()
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

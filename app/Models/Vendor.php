@@ -11,8 +11,17 @@ class Vendor extends Model
     use SoftDeletes, BelongsToTenant;
 
     protected $fillable = [
-        'tenant_id', 'vendor_name', 'contract_name', 'start_date', 'end_date',
-        'duty_type', 'vehicle_type', 'quantity', 'monthly_amount', 'notes', 'created_by'
+        'tenant_id',
+        'vendor_name',
+        'contact_number',
+        'start_date',
+        'end_date',
+        'duty_type',
+        'vehicle_type',
+        'quantity',
+        'monthly_amount',
+        'notes',
+        'created_by'
     ];
 
     protected $casts = [

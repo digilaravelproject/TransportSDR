@@ -114,20 +114,40 @@
             </div>
         </div>
 
-        <!-- Section 3: Update Documents -->
+        <!-- Section 3: Update Documents with Preview -->
         <div class="card mb-4">
             <div class="card-header bg-light fw-bold">Update Documents (Leave file inputs empty to keep current files)</div>
             <div class="card-body row">
 
+                @php
+                    // Staff ke purane documents fetch karke type ke hisaab se group kar rahe hain
+                    $docs = $staff->documents->keyBy('document_type');
+                @endphp
+
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Staff Photo</label>
+                    <label class="form-label w-100 d-flex justify-content-between align-items-center">
+                        <span>Staff Photo</span>
+                        @if (isset($docs['photo']))
+                            <a href="{{ asset('storage/' . $docs['photo']->document_path) }}" target="_blank"
+                                class="badge bg-info text-decoration-none text-dark"><i
+                                    class="fas fa-external-link-alt"></i> Preview</a>
+                        @endif
+                    </label>
                     <input type="file" name="photo_file" class="form-control" accept=".jpg,.jpeg,.png">
                 </div>
+
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Bank Passbook</label>
+                    <label class="form-label w-100 d-flex justify-content-between align-items-center">
+                        <span>Bank Passbook</span>
+                        @if (isset($docs['bank_passbook']))
+                            <a href="{{ asset('storage/' . $docs['bank_passbook']->document_path) }}" target="_blank"
+                                class="badge bg-info text-decoration-none text-dark"><i
+                                    class="fas fa-external-link-alt"></i> Preview</a>
+                        @endif
+                    </label>
                     <input type="file" name="passbook_file" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
                 </div>
-                <div class="col-md-4 mb-3"></div>
+                <div class="col-md-4 mb-3"></div> <!-- Empty Spacer -->
 
                 <!-- Aadhar -->
                 <div class="col-md-6 mb-3">
@@ -136,7 +156,14 @@
                         value="{{ old('aadhar_number', $staff->aadhar_number ?? '') }}">
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Update Aadhar File</label>
+                    <label class="form-label w-100 d-flex justify-content-between align-items-center">
+                        <span>Update Aadhar File</span>
+                        @if (isset($docs['aadhar']))
+                            <a href="{{ asset('storage/' . $docs['aadhar']->document_path) }}" target="_blank"
+                                class="badge bg-info text-decoration-none text-dark"><i
+                                    class="fas fa-external-link-alt"></i> Preview</a>
+                        @endif
+                    </label>
                     <input type="file" name="aadhar_file" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
                 </div>
 
@@ -147,7 +174,14 @@
                         value="{{ old('pan_number', $staff->pan_number ?? '') }}">
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Update PAN File</label>
+                    <label class="form-label w-100 d-flex justify-content-between align-items-center">
+                        <span>Update PAN File</span>
+                        @if (isset($docs['pan']))
+                            <a href="{{ asset('storage/' . $docs['pan']->document_path) }}" target="_blank"
+                                class="badge bg-info text-decoration-none text-dark"><i
+                                    class="fas fa-external-link-alt"></i> Preview</a>
+                        @endif
+                    </label>
                     <input type="file" name="pan_file" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
                 </div>
 
@@ -163,7 +197,14 @@
                         value="{{ old('dl_expiry', $staff->dl_expiry ? \Carbon\Carbon::parse($staff->dl_expiry)->format('Y-m-d') : '') }}">
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Update DL File</label>
+                    <label class="form-label w-100 d-flex justify-content-between align-items-center">
+                        <span>Update DL File</span>
+                        @if (isset($docs['license']))
+                            <a href="{{ asset('storage/' . $docs['license']->document_path) }}" target="_blank"
+                                class="badge bg-info text-decoration-none text-dark"><i
+                                    class="fas fa-external-link-alt"></i> Preview</a>
+                        @endif
+                    </label>
                     <input type="file" name="dl_file" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
                 </div>
 
@@ -179,7 +220,14 @@
                         value="{{ old('badge_expiry', $staff->badge_expiry ? \Carbon\Carbon::parse($staff->badge_expiry)->format('Y-m-d') : '') }}">
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Update Badge File</label>
+                    <label class="form-label w-100 d-flex justify-content-between align-items-center">
+                        <span>Update Badge File</span>
+                        @if (isset($docs['badge']))
+                            <a href="{{ asset('storage/' . $docs['badge']->document_path) }}" target="_blank"
+                                class="badge bg-info text-decoration-none text-dark"><i
+                                    class="fas fa-external-link-alt"></i> Preview</a>
+                        @endif
+                    </label>
                     <input type="file" name="badge_file" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
                 </div>
 
