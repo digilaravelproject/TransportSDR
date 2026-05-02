@@ -55,34 +55,34 @@ Route::prefix('admin')->group(function () {
             return view('admin.dashboard');
         })->name('admin.dashboard');
 
-        Route::resource('/users', AdminUserController::class, ['as' => 'admin']);
+        Route::resource('/users', AdminUserController::class);
 
         // Admin Vehicle & Vendor Management
-        Route::resource('/vehicles', App\Http\Controllers\Admin\AdminVehicleController::class, ['as' => 'admin']);
-        Route::resource('/vendors', App\Http\Controllers\Admin\AdminVendorController::class, ['as' => 'admin']);
+        Route::resource('/vehicles', App\Http\Controllers\Admin\AdminVehicleController::class);
+        Route::resource('/vendors', App\Http\Controllers\Admin\AdminVendorController::class);
 
-        Route::resource('/plans', ManagePlansController::class, ['as' => 'admin']);
+        Route::resource('/plans', ManagePlansController::class);
 
         Route::get('/subscriptions/statistics', [ManageSubscriptionsController::class, 'statistics'])->name('admin.subscriptions.statistics');
         Route::get('/subscriptions/export', [ManageSubscriptionsController::class, 'export'])->name('admin.subscriptions.export');
         Route::post('/subscriptions/{subscription}/cancel', [ManageSubscriptionsController::class, 'cancel'])->name('admin.subscriptions.cancel');
         Route::post('/subscriptions/{subscription}/renew', [ManageSubscriptionsController::class, 'renew'])->name('admin.subscriptions.renew');
-        Route::resource('/subscriptions', ManageSubscriptionsController::class, ['as' => 'admin']);
+        Route::resource('/subscriptions', ManageSubscriptionsController::class);
 
-        Route::resource('/shifts', ManageShiftsController::class, ['as' => 'admin']);
+        Route::resource('/shifts', ManageShiftsController::class);
         Route::post('/shifts/{shift}/add-driver', [ManageShiftsController::class, 'addDriver'])->name('admin.shifts.add-driver');
         Route::post('/shifts/{shift}/remove-driver', [ManageShiftsController::class, 'removeDriver'])->name('admin.shifts.remove-driver');
 
         // Manage Routes
-        Route::resource('/routes', App\Http\Controllers\Admin\ManageRoutesController::class, ['as' => 'admin']);
+        Route::resource('/routes', App\Http\Controllers\Admin\ManageRoutesController::class);
         // Leads management (Admin)
-        Route::resource('/leads', App\Http\Controllers\Admin\AdminLeadController::class, ['as' => 'admin']);
+        Route::resource('/leads', App\Http\Controllers\Admin\AdminLeadController::class);
         Route::post('/leads/{lead}/assign-vehicle', [App\Http\Controllers\Admin\AdminLeadController::class, 'assignVehicle'])->name('admin.leads.assign-vehicle');
         Route::post('/leads/{lead}/assign-driver', [App\Http\Controllers\Admin\AdminLeadController::class, 'assignDriver'])->name('admin.leads.assign-driver');
         Route::post('/routes/{route}/add-vehicle', [App\Http\Controllers\Admin\ManageRoutesController::class, 'addVehicle'])->name('admin.routes.add-vehicle');
         Route::post('/routes/{route}/remove-vehicle', [App\Http\Controllers\Admin\ManageRoutesController::class, 'removeVehicle'])->name('admin.routes.remove-vehicle');
         // Manage Modules
-        Route::resource('/modules', App\Http\Controllers\Admin\ModuleController::class, ['as' => 'admin']);
+        Route::resource('/modules', App\Http\Controllers\Admin\ModuleController::class);
         // Finance management
         Route::get('/finance', [App\Http\Controllers\Admin\FinanceController::class, 'index'])->name('admin.finance.index');
         Route::get('/finance/{entry}', [App\Http\Controllers\Admin\FinanceController::class, 'show'])->name('admin.finance.show');

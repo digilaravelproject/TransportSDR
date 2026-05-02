@@ -14,6 +14,7 @@ class Vendor extends Model
         'tenant_id',
         'vendor_name',
         'contact_number',
+        'contract_name',
         'start_date',
         'end_date',
         'duty_type',

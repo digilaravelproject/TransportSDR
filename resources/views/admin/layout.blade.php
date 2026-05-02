@@ -8,39 +8,46 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- DataTables dark theme -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f4f7fe;
-            color: #2d3748;
+            background-color: #07080a;
+            color: #c7d6e6;
         }
 
         /* Sidebar Styling */
         .sidebar {
             min-height: 100vh;
-            background: #1a202c;
-            color: white;
+            background: linear-gradient(180deg,#0b1220,#0f1724);
+            color: #cbd5e1;
             transition: all 0.3s;
             z-index: 1000;
+            padding-top: 18px;
+            border-right: 1px solid rgba(255,255,255,0.02);
         }
 
         .sidebar-brand {
-            padding: 1.5rem;
+            padding: 1.25rem 1.5rem;
             font-weight: 700;
             font-size: 1.25rem;
             letter-spacing: 1px;
             color: #fff;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display:flex;align-items:center;gap:10px
         }
 
         .nav-link {
-            color: #a0aec0;
-            padding: 0.8rem 1.5rem;
-            margin: 0.2rem 1rem;
-            border-radius: 8px;
-            transition: 0.3s;
+            color: #94a3b8;
+            padding: 0.8rem 1.25rem;
+            margin: 0.2rem 0.6rem;
+            border-radius: 12px;
+            transition: 0.18s;
             display: flex;
             align-items: center;
+            gap:12px;
+            font-weight:500;
         }
 
         .nav-link i {
@@ -50,13 +57,13 @@
 
         .nav-link:hover {
             color: #fff;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.03);
         }
 
         .nav-link.active {
-            background: #4c51bf;
-            color: white;
-            box-shadow: 0 4px 12px rgba(76, 81, 191, 0.3);
+            background: linear-gradient(90deg,#15303a,#1f4b66);
+            color: #e6f9f1;
+            box-shadow: 0 6px 20px rgba(2,6,23,0.6);
         }
 
         /* Content Area */
@@ -67,6 +74,7 @@
         .content-area {
             padding: 2rem;
             width: 100%;
+            background: transparent;
         }
 
         /* Mobile Adjustments */
@@ -101,14 +109,13 @@
         /* Card & UI Enhancements */
         .card {
             border: none;
-            border-radius: 15px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.07);
-            transition: transform 0.2s;
+            border-radius: 12px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+            box-shadow: 0 12px 30px rgba(2,6,23,0.6);
+            transition: transform 0.16s;
         }
 
-        .card:hover {
-            transform: translateY(-2px);
-        }
+        .card:hover { transform: translateY(-4px); }
 
         .stats-icon {
             width: 48px;
@@ -247,6 +254,24 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery + DataTables -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        // Initialize any table with class .datatable automatically
+        $(document).ready(function(){
+            $('.datatable').each(function(){
+                if (!$.fn.DataTable.isDataTable(this)) {
+                    $(this).DataTable({
+                        pageLength: 20,
+                        lengthChange: false,
+                        responsive: true
+                    });
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

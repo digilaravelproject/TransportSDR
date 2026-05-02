@@ -19,7 +19,7 @@
 <div class="card">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover datatable" id="usersTable">
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -51,13 +51,13 @@
                         </td>
                         <td>{{ $user->created_at->format('M d, Y') }}</td>
                         <td>
-                            <a href="{{ route('admin.users.edit', $user->id) }}" class="btn btn-sm btn-outline-primary me-1">
+                            <a href="{{ route('admin.users.edit', $user->id) }}" class="btn btn-sm btn-outline-primary me-1" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
                             <form method="POST" action="{{ route('admin.users.destroy', $user->id) }}" style="display:inline;">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure?')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure?')" title="Delete">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>
