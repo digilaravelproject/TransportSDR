@@ -126,6 +126,10 @@ Route::middleware(['auth:sanctum', 'tenant'])
         Route::get('vehicles/search', [Api\VehicleController::class, 'search']);
         Route::get('vehicles/filters', [Api\VehicleController::class, 'filter']);
         Route::apiResource('vehicles', Api\VehicleController::class);
+        // Vehicle Types
+        Route::get('vehicle-types/list', [Api\VehicleTypeController::class, 'list']);
+        Route::get('vehicle-types/search', [Api\VehicleTypeController::class, 'search']);
+        Route::apiResource('vehicle-types', Api\VehicleTypeController::class);
         Route::get('routes/{route_id}/available-vehicles', [Api\VehicleController::class, 'availableVehicles']);
         Route::prefix('vehicles')->group(function () {
             Route::get('documents/expiring',         [Api\VehicleController::class, 'expiringDocuments']);
