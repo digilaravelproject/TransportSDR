@@ -131,6 +131,85 @@
             font-weight: 500;
             padding: 0.6rem 1.2rem;
         }
+        /* Dark-theme overrides for DataTables and form controls */
+        /* Tables */
+        table.dataTable, .table {
+            background: transparent;
+            color: #e6eef6;
+            border-collapse: separate;
+        }
+        table.dataTable thead th {
+            background: rgba(255,255,255,0.03);
+            color: #e6eef6;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        table.dataTable tbody td {
+            background: linear-gradient(180deg, rgba(0,0,0,0.0), rgba(255,255,255,0.01));
+            color: #dce9f2;
+            vertical-align: middle;
+            border-top: 1px solid rgba(255,255,255,0.02);
+        }
+        .dataTables_wrapper .dataTables_filter input,
+        .dataTables_wrapper .dataTables_length select,
+        input.form-control, textarea.form-control, select.form-control {
+            background: rgba(255,255,255,0.03) !important;
+            border: 1px solid rgba(255,255,255,0.04) !important;
+            color: #e6eef6 !important;
+            box-shadow: none !important;
+        }
+        .dataTables_wrapper .dataTables_filter label, .dataTables_wrapper .dataTables_length label {
+            color: #9fb3c8;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            background: rgba(255,255,255,0.02);
+            color: #c7d6e6 !important;
+            border: 1px solid rgba(255,255,255,0.02);
+            border-radius: 6px;
+            padding: 6px 10px;
+            margin-left: 4px;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background: linear-gradient(90deg,#15303a,#1f4b66);
+            color: #e6f9f1 !important;
+        }
+        /* Card form areas */
+        .card .card-body {
+            background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));
+        }
+        label, .form-label, .form-text {
+            color: #bcd0de;
+        }
+        .btn-primary {
+            background: #0d6efd;
+            border-color: #0d6efd;
+            color: #fff;
+        }
+        .btn-outline-primary {
+            color: #9fc5ff;
+            border-color: rgba(159,197,255,0.12);
+            background: transparent;
+        }
+        .btn-outline-danger {
+            color: #ffb3b3;
+            border-color: rgba(255,100,100,0.12);
+            background: transparent;
+        }
+        /* Badges */
+        .badge {
+            color: #0b1220;
+        }
+        .badge.bg-success {
+            background: #34d399 !important;
+            color: #042018 !important;
+        }
+        .badge.bg-secondary {
+            background: #94a3b8 !important;
+            color: #071019 !important;
+        }
+        /* Small tweaks for table responsiveness */
+        .table-responsive { padding: 6px; }
+        .datatable_wrapper { overflow: visible; }
     </style>
 </head>
 
@@ -183,6 +262,12 @@
                         <a class="nav-link {{ str_contains(Route::currentRouteName(), 'admin.vehicles') ? 'active' : '' }}"
                             href="{{ route('admin.vehicles.index') }}">
                             <i class="fas fa-truck me-2"></i> Vehicles
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains(Route::currentRouteName(), 'admin.vehicle-types') ? 'active' : '' }}"
+                            href="{{ route('admin.vehicle-types.index') }}">
+                            <i class="fas fa-car-side me-2"></i> Vehicle Types
                         </a>
                     </li>
                     <li class="nav-item">
