@@ -44,6 +44,11 @@ class ManageVehicleTypeController extends Controller
         return view('admin.vehicle-types-edit', compact('vehicleType'));
     }
 
+    public function show(VehicleType $vehicleType)
+    {
+        return view('admin.vehicle-types-show', compact('vehicleType'));
+    }
+
     public function update(Request $request, VehicleType $vehicleType)
     {
         $data = $request->validate([

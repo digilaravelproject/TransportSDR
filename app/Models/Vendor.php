@@ -40,4 +40,9 @@ class Vendor extends Model
     {
         return $this->hasMany(VendorBill::class);
     }
+
+    public function tenant()
+    {
+        return $this->belongsTo(Tenant::class);
+    }
 }

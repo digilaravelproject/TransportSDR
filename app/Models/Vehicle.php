@@ -50,4 +50,9 @@ class Vehicle extends Model
     {
         return $this->hasMany(VehicleMaintenanceLog::class);
     }
+
+    public function tenant()
+    {
+        return $this->belongsTo(Tenant::class);
+    }
 }

@@ -48,6 +48,9 @@
                             @endif
                         </td>
                         <td>
+                            <a href="{{ route('admin.vehicle-types.show', $type->id) }}" class="btn btn-sm btn-outline-secondary me-1">
+                                <i class="fas fa-eye"></i>
+                            </a>
                             <a href="{{ route('admin.vehicle-types.edit', $type->id) }}" class="btn btn-sm btn-outline-primary me-1">
                                 <i class="fas fa-edit"></i>
                             </a>
