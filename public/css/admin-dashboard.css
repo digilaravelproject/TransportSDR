@@ -1,0 +1,61 @@
+/* Admin dashboard dark theme styles extracted from blade */
+.dashboard-shell {
+    background: linear-gradient(90deg, #0f1115 0%, #0b0d10 100%);
+    color: #e6eef8;
+    padding: 24px;
+    border-radius: 16px;
+}
+
+.top-row { display:flex; gap:20px; align-items:center; }
+.welcome-col { flex:1; }
+.cards-col { flex:2; display:flex; gap:16px; }
+
+.stat-card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius: 12px; padding:18px; flex:1;
+    box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+}
+
+.stat-card .label { font-size:12px; color:#9aa7b7; letter-spacing:1px }
+.stat-card .value { font-size:28px; font-weight:700; margin-top:6px }
+.stat-pill { background: rgba(255,255,255,0.03); padding:10px 12px; border-radius:10px; display:inline-flex; gap:10px; align-items:center }
+
+.dashboard-main { margin-top:18px; display:flex; gap:20px; }
+.left-panel { flex:2; }
+.right-panel { flex:1; display:flex; flex-direction:column; gap:18px }
+
+.chart-card, .activity-card, .map-card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; padding:18px; box-shadow:0 8px 24px rgba(2,6,23,0.6) }
+
+.shipment-table { width:100%; border-collapse:collapse; margin-top:12px }
+.shipment-table th, .shipment-table td { padding:10px; text-align:left; color:#c7d6e6; font-size:13px }
+.shipment-table thead th { color:#97a9bf; font-size:12px; text-transform:uppercase }
+
+.map-placeholder { height:200px; border-radius:10px; background: linear-gradient(180deg,#ffffff08,#ffffff02); position:relative; overflow:hidden }
+.truck-blob { height:140px; border-radius:12px; background:linear-gradient(180deg,#0b1220,#12161b); display:flex; align-items:center; justify-content:center; }
+
+/* responsive */
+@media (max-width: 992px) { .dashboard-main { flex-direction:column } }
+
+/* Leaflet container fix for our card */
+#dashboardMap { height: 200px; border-radius:10px; }
+
+/* DataTables dark tweaks */
+.datatable.dataTable thead th {
+    background: rgba(255,255,255,0.02);
+    color: #a8c0d8;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.datatable.dataTable tbody td {
+    color: #d1e0f0;
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    background: transparent; color: #c7d6e6; border: none; box-shadow: none; padding:6px 10px; border-radius:8px
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: #18333b; color: #e6fff8;
+}
+
+/* Buttons look */
+.btn-outline-primary { border-color: rgba(255,255,255,0.06); color: #c7d6e6 }
+.btn-outline-danger { border-color: rgba(255,255,255,0.06); color: #fca5a5 }
