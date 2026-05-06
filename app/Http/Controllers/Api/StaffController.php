@@ -336,206 +336,6 @@ class StaffController extends Controller
     }
 
     // ─────────────────────────────────────────────────
-    // POST /api/v1/staff/{id}/salary/generate
-    // Generate monthly salary
-    // ─────────────────────────────────────────────────
-    // public function generateSalary(Request $request, Staff $staff)
-    // {
-    //     $this->checkRole(['superadmin', 'admin', 'accountant']);
-
-    //     $data = $request->validate([
-    //         'month'          => 'required|integer|min:1|max:12',
-    //         'year'           => 'required|integer|min:2020',
-    //         'bonus'          => 'nullable|numeric|min:0',
-    //         'other_deduction' => 'nullable|numeric|min:0',
-    //         'notes'          => 'nullable|string',
-    //     ], [
-    //         'month.required' => 'Month is required.',
-    //         'year.required'  => 'Year is required.',
-    //     ]);
-
-    //     try {
-    //         $salary = $this->service->generateSalary($staff, $data['year'], $data['month']);
-
-    //         // Add bonus and other deduction if provided
-    //         if (isset($data['bonus']) || isset($data['other_deduction'])) {
-    //             $salary->update([
-    //                 'bonus'           => $data['bonus']           ?? $salary->bonus,
-    //                 'other_deduction' => $data['other_deduction'] ?? $salary->other_deduction,
-    //             ]);
-    //         }
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => "Salary generated for {$staff->name} — {$salary->month}.",
-    //             'data'    => $salary->load('staff'),
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'An unexpected error occurred while generating salary.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
-    // ─────────────────────────────────────────────────
-    // POST /api/v1/staff/{id}/salary/{salaryId}/pay
-    // Mark salary as paid
-    // ─────────────────────────────────────────────────
-    // public function paySalary(Request $request, Staff $staff, StaffSalary $salary)
-    // {
-    //     $this->checkRole(['superadmin', 'admin', 'accountant']);
-
-    //     if ($salary->payment_status === 'paid') {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'Salary already paid for this month.',
-    //         ], 422);
-    //     }
-
-    //     $data = $request->validate([
-    //         'payment_mode'    => 'required|in:cash,bank,upi',
-    //         'paid_on'         => 'required|date',
-    //         'transaction_ref' => 'nullable|string|max:100',
-    //         'notes'           => 'nullable|string',
-    //     ], [
-    //         'payment_mode.required' => 'Payment mode is required.',
-    //         'paid_on.required'      => 'Payment date is required.',
-    //     ]);
-
-    //     try {
-    //         $salary = $this->service->markSalaryPaid($salary, $data);
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => "Salary of ₹{$salary->net_salary} paid to {$staff->name}.",
-    //             'data'    => $salary,
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'An unexpected error occurred while marking the salary as paid.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
-    // ─────────────────────────────────────────────────
-    // GET /api/v1/staff/{id}/salary
-    // Salary history
-    // ─────────────────────────────────────────────────
-    // public function salaryList(Request $request, Staff $staff)
-    // {
-    //     $this->checkRole(['superadmin', 'admin', 'accountant']);
-
-    //     try {
-    //         $salaries = StaffSalary::where('staff_id', $staff->id)
-    //             ->when($request->year, fn($q, $v) => $q->where('year', $v))
-    //             ->when($request->payment_status, fn($q, $v) => $q->where('payment_status', $v))
-    //             ->orderBy('year', 'desc')
-    //             ->orderBy('month', 'desc')
-    //             ->paginate(12);
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'data'    => $salaries,
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'An unexpected error occurred while fetching salary history.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
-    // ─────────────────────────────────────────────────
-    // GET /api/v1/staff/{id}/salary-slip/{salaryId}
-    // Download salary slip PDF
-    // ─────────────────────────────────────────────────
-    // public function salarySlip(Staff $staff, StaffSalary $salary)
-    // {
-    //     $this->checkRole(['superadmin', 'admin', 'accountant']);
-
-    //     try {
-    //         $salary->load('staff');
-    //         $tenant = auth()->user()->tenant;
-
-    //         $absoluteDir = storage_path(
-    //             'app' . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR .
-    //                 'tenants' . DIRECTORY_SEPARATOR . $staff->tenant_id . DIRECTORY_SEPARATOR . 'salary-slips'
-    //         );
-
-    //         $fileName     = "salary-{$staff->id}-{$salary->month}.pdf";
-    //         $absoluteFile = $absoluteDir . DIRECTORY_SEPARATOR . $fileName;
-
-    //         if (!\Illuminate\Support\Facades\File::exists($absoluteDir)) {
-    //             \Illuminate\Support\Facades\File::makeDirectory($absoluteDir, 0775, true);
-    //         }
-
-    //         \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.salary-slip', [
-    //             'staff'  => $staff,
-    //             'salary' => $salary,
-    //             'tenant' => $tenant,
-    //         ])->setPaper('a4')->save($absoluteFile);
-
-    //         return response()->file($absoluteFile, [
-    //             'Content-Type'        => 'application/pdf',
-    //             'Content-Disposition' => "inline; filename=\"salary-{$staff->name}-{$salary->month}.pdf\"",
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'An unexpected error occurred while generating the salary slip.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
-    // ─────────────────────────────────────────────────
-    // POST /api/v1/staff/{id}/document
-    // Upload staff document
-    // ─────────────────────────────────────────────────
-    // public function uploadDocument(Request $request, Staff $staff)
-    // {
-    //     $this->checkRole(['superadmin', 'admin', 'operator']);
-
-    //     $request->validate([
-    //         'document_type'   => 'required|in:aadhar,pan,license,photo,address_proof,bank_passbook,other',
-    //         'document_number' => 'nullable|string|max:100',
-    //         'expiry_date'     => 'nullable|date',
-    //         'document_file'   => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
-    //         'notes'           => 'nullable|string',
-    //     ], [
-    //         'document_type.required' => 'Document type is required.',
-    //         'document_file.required' => 'Document file is required.',
-    //         'document_file.max'      => 'File size must not exceed 5MB.',
-    //     ]);
-
-    //     try {
-    //         $doc = $this->service->uploadDocument(
-    //             $staff,
-    //             $request->only(['document_type', 'document_number', 'expiry_date', 'notes']),
-    //             $request->file('document_file')
-    //         );
-
-    //         return response()->json([
-    //             'success'  => true,
-    //             'message'  => 'Document uploaded successfully.',
-    //             'data'     => $doc,
-    //             'file_url' => asset("storage/{$doc->document_path}"),
-    //         ], 201);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'An unexpected error occurred while uploading the document.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
-    // ─────────────────────────────────────────────────
     // GET /api/v1/staff/{id}/trips
     // Trip history of staff
     // ─────────────────────────────────────────────────
@@ -622,15 +422,6 @@ class StaffController extends Controller
         return response()->json(['success' => true, 'data' => $metric]);
     }
 
-    // public function dutyHistory(Staff $staff)
-    // {
-    //     $history = \App\Models\StaffAttendance::where('staff_id', $staff->id)
-    //         ->latest('date')
-    //         ->get(['date', 'trip_purpose', 'working_hours', 'check_in', 'check_out']);
-
-    //     return response()->json(['success' => true, 'data' => $history]);
-    // }
-
     // ─────────────────────────────────────────────────
     // GET /api/v1/staff/{id}/documents
     // Get list of uploaded documents for a staff member
@@ -674,37 +465,39 @@ class StaffController extends Controller
         }
     }
 
-    public function markAttendance(Request $request, Staff $staff)
+    public function uploadDocument(Request $request, Staff $staff)
     {
         $this->checkRole(['superadmin', 'admin', 'operator']);
 
-        $data = $request->validate([
-            'date'         => 'required|date',
-            'trip_purpose' => 'nullable|string|max:255', // Yeh validation add karein
-            'status'       => 'required|in:present,absent,half_day,on_trip,leave,holiday',
-            'check_in'     => 'nullable|date_format:H:i',
-            'check_out'    => 'nullable|date_format:H:i|after:check_in',
-            'notes'        => 'nullable|string',
+        $request->validate([
+            'document_type'   => 'required|in:aadhar,pan,license,photo,address_proof,bank_passbook,other',
+            'document_number' => 'nullable|string|max:100',
+            'expiry_date'     => 'nullable|date',
+            'document_file'   => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'notes'           => 'nullable|string',
         ], [
-            'date.required'   => 'Attendance date is required.',
-            'status.required' => 'Attendance status is required.',
-            'status.in'       => 'Invalid attendance status.',
+            'document_type.required' => 'Document type is required.',
+            'document_file.required' => 'Document file is required.',
+            'document_file.max'      => 'File size must not exceed 5MB.',
         ]);
 
         try {
-            $attendance = $this->service->markAttendance($staff, array_merge($data, [
-                'staff_id' => $staff->id,
-            ]));
+            $doc = $this->service->uploadDocument(
+                $staff,
+                $request->only(['document_type', 'document_number', 'expiry_date', 'notes']),
+                $request->file('document_file')
+            );
 
             return response()->json([
-                'success' => true,
-                'message' => "Duty record added for {$attendance->date->format('d-m-Y')}.",
-                'data'    => $attendance,
-            ]);
+                'success'  => true,
+                'message'  => 'Document uploaded successfully.',
+                'data'     => $doc,
+                'file_url' => asset("storage/{$doc->document_path}"),
+            ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'An unexpected error occurred while adding duty record.',
+                'message' => 'An unexpected error occurred while uploading the document.',
                 'error'   => $e->getMessage(),
             ], 500);
         }
