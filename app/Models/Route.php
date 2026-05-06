@@ -22,4 +22,11 @@ class Route extends Model
     {
         return $this->belongsToMany(Vehicle::class, 'route_vehicle');
     }
+
+    public function drivers()
+    {
+        return $this->belongsToMany(Staff::class, 'route_driver', 'route_id', 'driver_id')
+            ->withPivot(['assigned_from', 'assigned_to'])
+            ->withTimestamps();
+    }
 }

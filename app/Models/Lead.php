@@ -136,4 +136,9 @@ class Lead extends Model
     {
         return $this->attributes['customer_email'] ?? null;
     }
+
+    public function vehicleTypeDetails()
+    {
+        return $this->belongsTo(\App\Models\VehicleType::class, 'vehicle_type');
+    }
 }

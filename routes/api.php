@@ -343,6 +343,9 @@ Route::middleware(['auth:sanctum', 'tenant'])
         Route::get('routes/{id}', [Api\RouteController::class, 'show']);
         Route::put('routes/{id}', [Api\RouteController::class, 'update']);
         Route::post('routes/{id}/assign-vehicles', [Api\RouteController::class, 'assignVehicles']);
+        // Driver assignment endpoints
+        Route::get('routes/{id}/available-drivers', [Api\RouteController::class, 'availableDrivers']);
+        Route::post('routes/{id}/assign-drivers', [Api\RouteController::class, 'assignDrivers']);
 
         // Staff Attendance
         Route::get('attendance', [Api\AttendanceController::class, 'index']);

@@ -41,7 +41,7 @@ class LeadController extends Controller
         }
 
         $perPage = (int) ($request->per_page ?? 20);
-        $leads = $query->with(['notes.author', 'followups.author', 'vehicle', 'driver', 'expenses.creator', 'dutySheets.uploader'])->orderBy('created_at', 'desc')->paginate($perPage)->withQueryString();
+        $leads = $query->with(['notes.author', 'vehicleTypeDetails', 'followups.author', 'vehicle', 'driver', 'expenses.creator', 'dutySheets.uploader'])->orderBy('created_at', 'desc')->paginate($perPage)->withQueryString();
 
         return response()->json([
             'success' => true,
@@ -61,7 +61,7 @@ class LeadController extends Controller
             'trip_route' => 'required|string',
             'trip_date' => 'required|date',
             'duration_days' => 'required|integer|min:1',
-            'vehicle_type' => 'required|string',
+            'vehicle_type' => 'required|integer|min:1',
             'seating_capacity' => 'required|integer|min:1',
             'pickup_address' => 'required|string',
             'points' => 'required|array|min:1',
@@ -114,9 +114,27 @@ class LeadController extends Controller
     }
 
     // GET /api/v1/leads/{lead}
-    public function show(Lead $lead)
+    public function show_old(Lead $lead)
     {
         return response()->json(['success' => true, 'data' => $lead]);
+    }
+
+    public function show(Lead $lead)
+    {
+        $lead->load([
+            'vehicleTypeDetails',
+            'notes.author',
+            'followups.author',
+            'vehicle',
+            'driver',
+            'expenses.creator',
+            'dutySheets.uploader'
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $lead
+        ]);
     }
 
     // PUT /api/v1/leads/{lead}
@@ -126,7 +144,7 @@ class LeadController extends Controller
             'trip_route' => 'sometimes|string',
             'trip_date' => 'sometimes|date',
             'duration_days' => 'sometimes|integer|min:1',
-            'vehicle_type' => 'sometimes|string',
+            'vehicle_type' => 'sometimes|integer|min:1',
             'seating_capacity' => 'sometimes|integer|min:1',
             'pickup_address' => 'sometimes|string',
             'points' => 'sometimes|array|min:1',

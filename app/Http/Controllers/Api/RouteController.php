@@ -66,7 +66,7 @@ class RouteController extends Controller
                 $query->where('status', $type);
             }
 
-            $routes = $query->get();
+            $routes = $query->with(['vehicles', 'drivers'])->get();
 
             return response()->json([
                 'success' => true,
@@ -131,7 +131,7 @@ class RouteController extends Controller
     public function show($id)
     {
         try {
-            $route = BusRoute::with('vehicles')->findOrFail($id);
+            $route = BusRoute::with(['vehicles', 'drivers'])->findOrFail($id);
 
             return response()->json([
                 'success' => true,
@@ -216,6 +216,139 @@ class RouteController extends Controller
                 'message' => 'Failed to assign vehicles',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Simple permission helper copied from other controllers
+     */
+    private function checkRole(array $roles): void
+    {
+        if (! auth()->user()?->hasRole($roles)) {
+            abort(403, 'You do not have permission for this action.');
+        }
+    }
+
+    /**
+     * Get drivers NOT assigned to any route at given date (defaults to today)
+     */
+    public function availableDrivers(Request $request, $route_id)
+    {
+        try {
+            $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
+
+            $checkDate = $request->date ? \Carbon\Carbon::parse($request->date)->toDateString() : now()->toDateString();
+
+            // Drivers assigned to any route overlapping this date
+            $assignedDriverIds = \DB::table('route_driver')
+                ->where(function ($q) use ($checkDate) {
+                    $q->whereDate('assigned_from', '<=', $checkDate)
+                        ->where(function ($q2) use ($checkDate) {
+                            $q2->whereDate('assigned_to', '>=', $checkDate)
+                            ->orWhereNull('assigned_to');
+                        });
+                })->pluck('driver_id')->toArray();
+
+            // Drivers who are on trips overlapping this date
+            $onTripDriverIds = \DB::table('trips')
+                ->where(function ($q) use ($checkDate) {
+                    $q->whereDate('trip_date', '<=', $checkDate)
+                        ->where(function ($q2) use ($checkDate) {
+                            $q2->whereDate('return_date', '>=', $checkDate)
+                                ->orWhereNull('return_date');
+                        });
+                })
+                ->where('status', '!=', 'cancelled')
+                ->pluck('driver_id')
+                ->toArray();
+
+            $excludeIds = array_unique(array_filter(array_merge($assignedDriverIds, $onTripDriverIds)));
+
+            $driversQuery = \App\Models\Staff::query()
+                ->where(function ($q) {
+                    $q->whereHas('role', fn($qr) => $qr->where('name', 'driver'))
+                        ->orWhere('staff_type', 'driver');
+                })
+                ->when(!empty($excludeIds), fn($q) => $q->whereNotIn('id', $excludeIds))
+                ->when($request->search, fn($q, $v) => $q->where('name', 'like', "%{$v}%"))
+                ->where('is_active', true)
+                ->latest();
+
+            $drivers = $driversQuery->paginate($request->per_page ?? 20)->withQueryString();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Available drivers retrieved successfully',
+                'data'    => \App\Http\Resources\StaffResource::collection($drivers),
+                'meta'    => [
+                    'total' => $drivers->total(),
+                    'current_page' => $drivers->currentPage(),
+                    'last_page' => $drivers->lastPage(),
+                ],
+            ]);
+
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission to view drivers.', 'error' => $e->getMessage()], 403);
+        } catch (Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to fetch available drivers.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Assign drivers to route (with optional assigned_from / assigned_to dates)
+     */
+    public function assignDrivers(Request $request, $route_id)
+    {
+        try {
+            $this->checkRole(['superadmin', 'admin']);
+
+            $data = $request->validate([
+                'driver_ids' => 'required|array|min:1',
+                'driver_ids.*' => 'exists:staff,id',
+                'assigned_from' => 'nullable|date',
+                'assigned_to' => 'nullable|date|after_or_equal:assigned_from',
+            ]);
+
+            $route = BusRoute::findOrFail($route_id);
+
+            $from = $data['assigned_from'] ?? null;
+            $to   = $data['assigned_to'] ?? null;
+
+            $conflicts = [];
+            $attached = [];
+
+            foreach ($data['driver_ids'] as $driverId) {
+                // check overlap with existing assignments for this driver
+                $overlap = \DB::table('route_driver')
+                    ->where('driver_id', $driverId)
+                    ->where(function ($q) use ($from, $to) {
+                        if ($from && $to) {
+                            $q->where(function ($s) use ($from, $to) {
+                                $s->whereDate('assigned_from', '<=', $to)
+                                    ->where(function ($s2) use ($from) {
+                                        $s2->whereDate('assigned_to', '>=', $from)
+                                            ->orWhereNull('assigned_to');
+                                    });
+                            });
+                        }
+                    })->exists();
+
+                if ($overlap) {
+                    $conflicts[] = $driverId;
+                    continue;
+                }
+
+                // attach with pivot attributes
+                $route->drivers()->syncWithoutDetaching([$driverId => ['assigned_from' => $from, 'assigned_to' => $to]]);
+                $attached[] = $driverId;
+            }
+
+            return response()->json(['success' => true, 'message' => 'Driver assignment completed', 'data' => ['attached' => $attached, 'conflicts' => $conflicts]]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to assign drivers', 'error' => $e->getMessage()], 500);
         }
     }
 }

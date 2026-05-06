@@ -21,7 +21,7 @@ class VendorController extends Controller
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
             'duty_type' => 'nullable|string|max:100',
-            'vehicle_type' => 'nullable|string|max:100',
+            'vehicle_type' => 'nullable|integer|min:1',
             'quantity' => 'nullable|integer|min:0',
             'monthly_amount' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
@@ -52,35 +52,39 @@ class VendorController extends Controller
             });
         }
         $per = $request->integer('per_page', 20);
-        $p = $q->latest()->paginate($per);
+
+        $p = $q->with(['vehicleTypeDetails'])
+           ->latest()
+           ->paginate($per);
+
         return response()->json(['success' => true, 'data' => $p->items(), 'meta' => ['total' => $p->total(), 'current_page' => $p->currentPage()]]);
     }
 
     public function toggleStatus($vendorId)
-{
-    try {
-        $vendor = Vendor::findOrFail($vendorId);
+    {
+        try {
+            $vendor = Vendor::findOrFail($vendorId);
 
-        // Toggle status
-        $vendor->status = !$vendor->status;
-        $vendor->save();
+            // Toggle status
+            $vendor->status = !$vendor->status;
+            $vendor->save();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Vendor status updated successfully',
-            'data' => [
-                'vendor_id' => $vendor->id,
-                'status' => $vendor->status
-            ]
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Vendor status updated successfully',
+                'data' => [
+                    'vendor_id' => $vendor->id,
+                    'status' => $vendor->status
+                ]
+            ]);
 
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => $e->getMessage()
-        ], 500);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
-}
 
     // PUT/PATCH /api/v1/vendors/{vendor}
     public function update(Request $request, Vendor $vendor)
@@ -94,7 +98,7 @@ class VendorController extends Controller
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
             'duty_type' => 'nullable|string|max:100',
-            'vehicle_type' => 'nullable|string|max:100',
+            'vehicle_type' => 'nullable|integer|min:1',
             'quantity' => 'nullable|integer|min:0',
             'monthly_amount' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
@@ -111,7 +115,10 @@ class VendorController extends Controller
     public function show(Vendor $vendor)
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
-        $vendor->load('vehicles');
+        $vendor->load([
+            'vehicles',
+            'vehicleTypeDetails'
+        ]);
         $bills = VendorBill::where('vendor_id', $vendor->id)->orderBy('billing_date', 'desc')->get();
         return response()->json(['success' => true, 'data' => ['vendor' => $vendor, 'assigned_vehicles' => $vendor->vehicles, 'billing_history' => $bills]]);
     }

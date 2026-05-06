@@ -45,4 +45,9 @@ class Vendor extends Model
     {
         return $this->belongsTo(Tenant::class);
     }
+
+    public function vehicleTypeDetails()
+    {
+        return $this->belongsTo(\App\Models\VehicleType::class, 'vehicle_type');
+    }
 }

@@ -124,6 +124,12 @@ class Staff extends Model
     {
         return $this->belongsToMany(\App\Models\Shift::class, 'shift_driver', 'driver_id', 'shift_id');
     }
+    public function routes()
+    {
+        return $this->belongsToMany(\App\Models\Route::class, 'route_driver', 'driver_id', 'route_id')
+            ->withPivot(['assigned_from', 'assigned_to'])
+            ->withTimestamps();
+    }
     public function role()
     {
         return $this->belongsTo(\App\Models\RoleModule::class, 'staff_type');
