@@ -14,72 +14,49 @@ class StaffController extends Controller
 {
     public function __construct(private StaffService $service) {}
 
-    // ─────────────────────────────────────────────────
-    // GET /api/v1/staff
-    // ─────────────────────────────────────────────────
-
-
-    // public function index(Request $request)
-    // {
-    //     $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
-
-    //     try {
-    //         // Eager load 'role' to optimize database queries
-    //         $staff = Staff::with(['user', 'role'])
-    //             ->when($request->staff_type,   fn($q, $v) => $q->where('staff_type', $v))
-    //             ->when($request->is_available, fn($q, $v) => $q->where('is_available', (bool)$v))
-    //             ->when($request->is_active,    fn($q, $v) => $q->where('is_active', (bool)$v))
-    //             ->when($request->search,       fn($q, $v) => $q->where(function ($q) use ($v) {
-    //                 $q->where('name',  'like', "%{$v}%")             // Search by Staff Name
-    //                     ->orWhere('phone', 'like', "%{$v}%")         // Search by Phone (Default rakha hai, helpful hota hai)
-    //                     ->orWhere('email', 'like', "%{$v}%")         // Search by Email
-    //                     ->orWhere('staff_type', $v)                  // Search by Role ID (e.g., '1', '2')
-    //                     ->orWhereHas('role', function ($roleQuery) use ($v) {
-    //                         $roleQuery->where('name', 'like', "%{$v}%"); // Search by Role Name (e.g., 'Driver', 'Manager')
-    //                     });
-    //             }))
-    //             ->latest()
-    //             ->paginate($request->per_page ?? 20)
-    //             ->withQueryString();
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'data'    => StaffResource::collection($staff),
-    //             'meta'    => [
-    //                 'total'        => $staff->total(),
-    //                 'current_page' => $staff->currentPage(),
-    //                 'last_page'    => $staff->lastPage(),
-    //             ],
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'An unexpected error occurred while fetching staff records.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
     public function index(Request $request)
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
         try {
-            // Eager load 'role' and 'shift' to optimize database queries
+
             $staff = Staff::with(['user', 'role', 'shift'])
-                ->when($request->staff_type,   fn($q, $v) => $q->where('staff_type', $v))
-                ->when($request->work_shift,   fn($q, $v) => $q->where('work_shift', $v)) // NAYA FILTER ADD KIYA HAI
-                ->when($request->is_available, fn($q, $v) => $q->where('is_available', (bool)$v))
-                ->when($request->is_active,    fn($q, $v) => $q->where('is_active', (bool)$v))
-                ->when($request->search,       fn($q, $v) => $q->where(function ($q) use ($v) {
-                    $q->where('name',  'like', "%{$v}%")             // Search by Staff Name
-                        ->orWhere('phone', 'like', "%{$v}%")         // Search by Phone (Default rakha hai, helpful hota hai)
-                        ->orWhere('email', 'like', "%{$v}%")         // Search by Email
-                        ->orWhere('staff_type', $v)                  // Search by Role ID (e.g., '1', '2')
-                        ->orWhereHas('role', function ($roleQuery) use ($v) {
-                            $roleQuery->where('name', 'like', "%{$v}%"); // Search by Role Name (e.g., 'Driver', 'Manager')
-                        });
-                }))
+
+                // Filter by role type/name
+                ->when($request->type, function ($q, $v) {
+                    $q->whereHas('role', function ($roleQuery) use ($v) {
+                        $roleQuery->where('name', $v);
+                    });
+                })
+
+                ->when($request->staff_type, fn($q, $v) =>
+                    $q->where('staff_type', $v)
+                )
+
+                ->when($request->work_shift, fn($q, $v) =>
+                    $q->where('work_shift', $v)
+                )
+
+                ->when($request->is_available, fn($q, $v) =>
+                    $q->where('is_available', (bool)$v)
+                )
+
+                ->when($request->is_active, fn($q, $v) =>
+                    $q->where('is_active', (bool)$v)
+                )
+
+                ->when($request->search, function ($q, $v) {
+                    $q->where(function ($q) use ($v) {
+                        $q->where('name', 'like', "%{$v}%")
+                            ->orWhere('phone', 'like', "%{$v}%")
+                            ->orWhere('email', 'like', "%{$v}%")
+                            ->orWhere('staff_type', $v)
+                            ->orWhereHas('role', function ($roleQuery) use ($v) {
+                                $roleQuery->where('name', 'like', "%{$v}%");
+                            });
+                    });
+                })
+
                 ->latest()
                 ->paginate($request->per_page ?? 20)
                 ->withQueryString();
@@ -93,7 +70,9 @@ class StaffController extends Controller
                     'last_page'    => $staff->lastPage(),
                 ],
             ]);
+
         } catch (\Exception $e) {
+
             return response()->json([
                 'success' => false,
                 'message' => 'An unexpected error occurred while fetching staff records.',
@@ -101,7 +80,6 @@ class StaffController extends Controller
             ], 500);
         }
     }
-
 
     public function store(Request $request)
     {
@@ -156,6 +134,40 @@ class StaffController extends Controller
         }
     }
 
+    public function show(Staff $staff)
+    {
+        $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
+
+        try {
+            $staff->load(['user', 'documents', 'role', 'shift']);
+
+            $pendingAdvance = $staff->pendingAdvanceAmount();
+            $pendingDA      = StaffDaLog::where('staff_id', $staff->id)
+                ->where('status', 'pending')
+                ->sum('da_amount');
+
+            $recentTrips = Trip::where(function ($q) use ($staff) {
+                $q->where('driver_id', $staff->id)
+                    ->orWhere('helper_id', $staff->id);
+            })->latest()->take(5)->get(['id', 'trip_number', 'trip_date', 'trip_route', 'status']);
+
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'staff'           => new StaffResource($staff),
+                    'pending_advance' => $pendingAdvance,
+                    'pending_da'      => $pendingDA,
+                    'recent_trips'    => $recentTrips,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching staff details.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
 
     public function update(Request $request, Staff $staff)
     {
@@ -213,254 +225,14 @@ class StaffController extends Controller
         }
     }
 
-    // ─────────────────────────────────────────────────
-    // POST /api/v1/staff
-    // ─────────────────────────────────────────────────
-    // public function store(Request $request)
-    // {
-    //     $this->checkRole(['superadmin', 'admin']);
-
-    //     $data = $request->validate([
-    //         'name'                   => 'required|string|max:255',
-    //         'phone'                  => 'required|string|max:15',
-    //         'email'                  => 'nullable|email|max:255',
-    //         'staff_type'             => 'required|in:driver,helper,office',
-    //         'date_of_birth'          => 'nullable|date',
-    //         'date_of_joining'        => 'nullable|date',
-    //         'address'                => 'nullable|string',
-    //         'emergency_contact'      => 'nullable|string|max:15',
-    //         'emergency_contact_name' => 'nullable|string|max:255',
-    //         'license_number'         => 'nullable|string|max:50',
-    //         'license_expiry'         => 'nullable|date',
-    //         'license_type'           => 'nullable|string|max:50',
-    //         'basic_salary'           => 'nullable|numeric|min:0',
-    //         'da_per_day'             => 'nullable|numeric|min:0',
-    //         'hra'                    => 'nullable|numeric|min:0',
-    //         'other_allowance'        => 'nullable|numeric|min:0',
-    //         'bank_name'              => 'nullable|string|max:100',
-    //         'bank_account'           => 'nullable|string|max:50',
-    //         'bank_ifsc'              => 'nullable|string|max:20',
-    //         'notes'                  => 'nullable|string',
-    //     ], [
-    //         'name.required'       => 'Staff name is required.',
-    //         'phone.required'      => 'Phone number is required.',
-    //         'staff_type.required' => 'Staff type is required.',
-    //         'staff_type.in'       => 'Staff type must be driver, helper or office.',
-    //     ]);
-
-    //     try {
-    //         $staff = $this->service->store($data);
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => 'Staff member added successfully.',
-    //             'data'    => new StaffResource($staff),
-    //         ], 201);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'An unexpected error occurred while adding the staff member.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
-
-    // public function store(Request $request)
-    // {
-    //     $this->checkRole(['superadmin', 'admin']);
-
-    //     // Updated Validation rules for Form + Documents
-    //     $data = $request->validate([
-    //         'name'                   => 'required|string|max:255',
-    //         'phone'                  => 'required|string|max:15',
-    //         'email'                  => 'nullable|email|max:255',
-    //         'staff_type' => 'required|exists:role_modules,id',
-    //         'salary_type'            => 'nullable|in:monthly,daily',
-    //         'work_shift'             => 'nullable|string|max:100',
-    //         'basic_salary'           => 'nullable|numeric|min:0',
-    //         'address'                => 'nullable|string',
-    //         'date_of_joining'        => 'nullable|date',
-
-    //         // Document Fields
-    //         'aadhar_number'          => 'nullable|string|max:50',
-    //         'aadhar_file'            => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-
-    //         'pan_number'             => 'nullable|string|max:50',
-    //         'pan_file'               => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-
-    //         'dl_number'              => 'nullable|string|max:50',
-    //         'dl_expiry'              => 'nullable|date',
-    //         'dl_file'                => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-
-    //         'badge_number'           => 'nullable|string|max:50',
-    //         'badge_expiry'           => 'nullable|date',
-    //         'badge_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-
-    //         'passbook_file'          => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-    //         'photo_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-    //     ]);
-
-    //     try {
-    //         // Naya service method call kiya hai jo staff aur files dono save karega
-    //         $staff = $this->service->storeWithDocuments($data, $request);
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => 'Staff and documents saved successfully.',
-    //             'data'    => new StaffResource($staff),
-    //         ], 201);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'An unexpected error occurred while adding the staff member.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
-    // ─────────────────────────────────────────────────
-    // GET /api/v1/staff/{id}
-    // ─────────────────────────────────────────────────
-    public function show(Staff $staff)
+    /**
+     * GET /api/v1/staff/search
+     * Proxy to index for explicit search route (keeps route-friendly API)
+     */
+    public function search(Request $request)
     {
-        $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
-
-        try {
-            $staff->load(['user', 'documents', 'role', 'shift']);
-
-            $pendingAdvance = $staff->pendingAdvanceAmount();
-            $pendingDA      = StaffDaLog::where('staff_id', $staff->id)
-                ->where('status', 'pending')
-                ->sum('da_amount');
-
-            $recentTrips = Trip::where(function ($q) use ($staff) {
-                $q->where('driver_id', $staff->id)
-                    ->orWhere('helper_id', $staff->id);
-            })->latest()->take(5)->get(['id', 'trip_number', 'trip_date', 'trip_route', 'status']);
-
-            return response()->json([
-                'success' => true,
-                'data'    => [
-                    'staff'           => new StaffResource($staff),
-                    'pending_advance' => $pendingAdvance,
-                    'pending_da'      => $pendingDA,
-                    'recent_trips'    => $recentTrips,
-                ],
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'An unexpected error occurred while fetching staff details.',
-                'error'   => $e->getMessage(),
-            ], 500);
-        }
+        return $this->index($request);
     }
-
-    // ─────────────────────────────────────────────────
-    // PUT /api/v1/staff/{id}
-    // ─────────────────────────────────────────────────
-    // public function update(Request $request, Staff $staff)
-    // {
-    //     $this->checkRole(['superadmin', 'admin']);
-
-    //     $data = $request->validate([
-    //         'name'                   => 'sometimes|string|max:255',
-    //         'phone'                  => 'sometimes|string|max:15',
-    //         'email'                  => 'nullable|email|max:255',
-    //         'staff_type'             => 'sometimes|in:driver,helper,office',
-    //         'date_of_birth'          => 'nullable|date',
-    //         'date_of_joining'        => 'nullable|date',
-    //         'address'                => 'nullable|string',
-    //         'emergency_contact'      => 'nullable|string|max:15',
-    //         'emergency_contact_name' => 'nullable|string|max:255',
-    //         'license_number'         => 'nullable|string|max:50',
-    //         'license_expiry'         => 'nullable|date',
-    //         'license_type'           => 'nullable|string|max:50',
-    //         'basic_salary'           => 'nullable|numeric|min:0',
-    //         'da_per_day'             => 'nullable|numeric|min:0',
-    //         'hra'                    => 'nullable|numeric|min:0',
-    //         'other_allowance'        => 'nullable|numeric|min:0',
-    //         'bank_name'              => 'nullable|string|max:100',
-    //         'bank_account'           => 'nullable|string|max:50',
-    //         'bank_ifsc'              => 'nullable|string|max:20',
-    //         'is_available'           => 'boolean',
-    //         'is_active'              => 'boolean',
-    //         'notes'                  => 'nullable|string',
-    //     ]);
-
-    //     try {
-    //         $staff = $this->service->update($staff, $data);
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => 'Staff updated successfully.',
-    //             'data'    => new StaffResource($staff),
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'An unexpected error occurred while updating the staff member.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
-    // public function update(Request $request, Staff $staff)
-    // {
-    //     $this->checkRole(['superadmin', 'admin']);
-
-    //     // Updated Validation rules for Form + Documents
-    //     $data = $request->validate([
-    //         'name'                   => 'sometimes|string|max:255',
-    //         'phone'                  => 'sometimes|string|max:15',
-    //         'email'                  => 'nullable|email|max:255',
-    //         'staff_type'             => 'sometimes|exists:role_modules,id',
-    //         'salary_type'            => 'nullable|in:monthly,daily',
-    //         'work_shift'             => 'nullable|string|max:100',
-    //         'assigned_vehicle'       => 'nullable|string|max:100',
-    //         'basic_salary'           => 'nullable|numeric|min:0',
-    //         'address'                => 'nullable|string',
-    //         'date_of_joining'        => 'nullable|date',
-    //         'is_available'           => 'boolean',
-    //         'is_active'              => 'boolean',
-
-    //         // Document Fields
-    //         'aadhar_number'          => 'nullable|string|max:50',
-    //         'aadhar_file'            => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-
-    //         'pan_number'             => 'nullable|string|max:50',
-    //         'pan_file'               => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-
-    //         'dl_number'              => 'nullable|string|max:50',
-    //         'dl_expiry'              => 'nullable|date',
-    //         'dl_file'                => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-
-    //         'badge_number'           => 'nullable|string|max:50',
-    //         'badge_expiry'           => 'nullable|date',
-    //         'badge_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-
-    //         'passbook_file'          => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-    //         'photo_file'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-    //     ]);
-
-    //     try {
-    //         // Naya service method: updateWithDocuments
-    //         $staff = $this->service->updateWithDocuments($staff, $data, $request);
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => 'Staff and documents updated successfully.',
-    //             'data'    => new StaffResource($staff),
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'An unexpected error occurred while updating the staff member.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
 
     // ─────────────────────────────────────────────────
     // DELETE /api/v1/staff/{id}
@@ -491,176 +263,6 @@ class StaffController extends Controller
             ], 500);
         }
     }
-
-    // ─────────────────────────────────────────────────
-    // POST /api/v1/staff/{id}/attendance
-    // Mark attendance
-    // ─────────────────────────────────────────────────
-    // public function markAttendance(Request $request, Staff $staff)
-    // {
-    //     $this->checkRole(['superadmin', 'admin', 'operator']);
-
-    //     $data = $request->validate([
-    //         'date'      => 'required|date',
-    //         'status'    => 'required|in:present,absent,half_day,on_trip,leave,holiday',
-    //         'check_in'  => 'nullable|date_format:H:i',
-    //         'check_out' => 'nullable|date_format:H:i|after:check_in',
-    //         'notes'     => 'nullable|string',
-    //     ], [
-    //         'date.required'   => 'Attendance date is required.',
-    //         'status.required' => 'Attendance status is required.',
-    //         'status.in'       => 'Invalid attendance status.',
-    //     ]);
-
-    //     try {
-    //         $attendance = $this->service->markAttendance($staff, array_merge($data, [
-    //             'staff_id' => $staff->id,
-    //         ]));
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => "Attendance marked as {$attendance->status} for {$attendance->date->format('d-m-Y')}.",
-    //             'data'    => $attendance,
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'An unexpected error occurred while marking attendance.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
-    // ─────────────────────────────────────────────────
-    // GET /api/v1/staff/{id}/attendance
-    // Attendance list with filters
-    // ─────────────────────────────────────────────────
-    // public function attendanceList(Request $request, Staff $staff)
-    // {
-    //     $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
-
-    //     try {
-    //         $month = $request->month ?? now()->format('m');
-    //         $year  = $request->year  ?? now()->format('Y');
-
-    //         $attendance = StaffAttendance::where('staff_id', $staff->id)
-    //             ->whereMonth('date', $month)
-    //             ->whereYear('date', $year)
-    //             ->orderBy('date')
-    //             ->get();
-
-    //         $summary = [
-    //             'total_days'   => $attendance->count(),
-    //             'present'      => $attendance->where('status', 'present')->count(),
-    //             'absent'       => $attendance->where('status', 'absent')->count(),
-    //             'half_day'     => $attendance->where('status', 'half_day')->count(),
-    //             'on_trip'      => $attendance->where('status', 'on_trip')->count(),
-    //             'leave'        => $attendance->where('status', 'leave')->count(),
-    //             'holiday'      => $attendance->where('status', 'holiday')->count(),
-    //         ];
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'data'    => [
-    //                 'staff'      => ['id' => $staff->id, 'name' => $staff->name],
-    //                 'period'     => ['month' => $month, 'year' => $year],
-    //                 'summary'    => $summary,
-    //                 'attendance' => $attendance,
-    //             ],
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'An unexpected error occurred while fetching attendance list.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
-    // ─────────────────────────────────────────────────
-    // POST /api/v1/staff/{id}/da
-    // Calculate DA for a specific trip
-    // ─────────────────────────────────────────────────
-    // public function calculateDA(Request $request, Staff $staff)
-    // {
-    //     $this->checkRole(['superadmin', 'admin', 'accountant']);
-
-    //     $data = $request->validate([
-    //         'trip_id'         => 'required|exists:trips,id',
-    //         'extra_allowance' => 'nullable|numeric|min:0',
-    //         'notes'           => 'nullable|string',
-    //     ], [
-    //         'trip_id.required' => 'Trip is required.',
-    //         'trip_id.exists'   => 'Trip not found.',
-    //     ]);
-
-    //     try {
-    //         $trip = Trip::findOrFail($data['trip_id']);
-
-    //         // Check staff was on this trip
-    //         if ($trip->driver_id !== $staff->id && $trip->helper_id !== $staff->id) {
-    //             return response()->json([
-    //                 'success' => false,
-    //                 'message' => 'This staff member was not assigned to this trip.',
-    //             ], 422);
-    //         }
-
-    //         $daLog = $this->service->calculateTripDA($staff, $trip);
-
-    //         // Update extra allowance if provided
-    //         if (isset($data['extra_allowance'])) {
-    //             $daLog->update(['extra_allowance' => $data['extra_allowance']]);
-    //         }
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => "DA calculated: ₹{$daLog->da_amount} for {$trip->trip_number}.",
-    //             'data'    => $daLog->load('trip'),
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'An unexpected error occurred while calculating DA.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
-    // ─────────────────────────────────────────────────
-    // GET /api/v1/staff/{id}/da
-    // DA logs list
-    // ─────────────────────────────────────────────────
-    // public function daList(Request $request, Staff $staff)
-    // {
-    //     $this->checkRole(['superadmin', 'admin', 'accountant']);
-
-    //     try {
-    //         $daLogs = StaffDaLog::where('staff_id', $staff->id)
-    //             ->with('trip')
-    //             ->when($request->status, fn($q, $v) => $q->where('status', $v))
-    //             ->latest()
-    //             ->paginate(20);
-
-    //         $summary = [
-    //             'total_pending' => StaffDaLog::where('staff_id', $staff->id)->where('status', 'pending')->sum('da_amount'),
-    //             'total_paid'    => StaffDaLog::where('staff_id', $staff->id)->where('status', 'paid')->sum('da_amount'),
-    //         ];
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'data'    => [
-    //                 'summary' => $summary,
-    //                 'logs'    => $daLogs,
-    //             ],
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'An unexpected error occurred while fetching DA list.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
 
     // ─────────────────────────────────────────────────
     // POST /api/v1/staff/{id}/advance

@@ -157,23 +157,8 @@ Route::middleware(['auth:sanctum', 'tenant'])
             });
         });
 
-        // MODULE 4 — Staff Management
-
-        // Route::get('roles', [Api\RoleController::class, 'indexrole']);
-
-        // Staff Module
-
-        // Route::prefix('staff/{staff}')->group(function () {
-        //     Route::get('performance-report', [Api\StaffController::class, 'getPerformance']);
-        //     Route::get('duty-logs', [Api\StaffController::class, 'dutyHistory']);
-        //     Route::post('attendance', [Api\StaffController::class, 'markAttendance']);
-        //     Route::post('advance', [Api\StaffController::class, 'giveAdvance']);
-        //     Route::get('advances', [Api\StaffController::class, 'advanceList']);
-        //     // Route::post('salary/pay', [Api\StaffController::class, 'paySalary']);
-        //     Route::post('document', [Api\StaffController::class, 'uploadDocument']);
-        // });
-
         Route::apiResource('staff', Api\StaffController::class);
+        Route::get('staff/search', [Api\StaffController::class, 'search']);
         Route::post('staff/salary/filter', [Api\StaffController::class, 'salaryFilter']);
         Route::prefix('staff')->group(function () {
             Route::get('performance',                        [Api\StaffController::class, 'performance']);
@@ -189,9 +174,6 @@ Route::middleware(['auth:sanctum', 'tenant'])
                 // Advance
                 Route::post('advance',                       [Api\StaffController::class, 'giveAdvance']);
                 Route::get('advances',                       [Api\StaffController::class, 'advanceList']);
-                // Attendance
-                Route::post('attendance',                    [Api\StaffController::class, 'markAttendance']);
-                Route::get('attendance',                     [Api\StaffController::class, 'attendanceList']);
 
                 // DA
                 Route::post('da',                            [Api\StaffController::class, 'calculateDA']);

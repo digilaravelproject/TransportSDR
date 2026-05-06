@@ -264,36 +264,70 @@ class StaffService
 
             // 2. Aadhar Card Upload
             if ($request->hasFile('aadhar_file')) {
-                $this->saveOrUpdateDocument($staff, 'aadhar', $data['aadhar_number'] ?? null, null, $request->file('aadhar_file'));
+                $this->replaceDocument($staff, 'aadhar', $data['aadhar_number'] ?? null, null, $request->file('aadhar_file'));
             }
 
             // 3. PAN Card Upload
             if ($request->hasFile('pan_file')) {
-                $this->saveOrUpdateDocument($staff, 'pan', $data['pan_number'] ?? null, null, $request->file('pan_file'));
+                $this->replaceDocument($staff, 'pan', $data['pan_number'] ?? null, null, $request->file('pan_file'));
             }
 
             // 4. Driving License Upload
             if ($request->hasFile('dl_file')) {
-                $this->saveOrUpdateDocument($staff, 'license', $data['dl_number'] ?? null, $data['dl_expiry'] ?? null, $request->file('dl_file'));
+                $this->replaceDocument($staff, 'license', $data['dl_number'] ?? null, $data['dl_expiry'] ?? null, $request->file('dl_file'));
             }
 
             // 5. Badge Upload
             if ($request->hasFile('badge_file')) {
-                $this->saveOrUpdateDocument($staff, 'badge', $data['badge_number'] ?? null, $data['badge_expiry'] ?? null, $request->file('badge_file'));
+                $this->replaceDocument($staff, 'badge', $data['badge_number'] ?? null, $data['badge_expiry'] ?? null, $request->file('badge_file'));
             }
 
             // 6. Bank Passbook
             if ($request->hasFile('passbook_file')) {
-                $this->saveOrUpdateDocument($staff, 'bank_passbook', null, null, $request->file('passbook_file'));
+                $this->replaceDocument($staff, 'bank_passbook', null, null, $request->file('passbook_file'));
             }
 
             // 7. Photo
             if ($request->hasFile('photo_file')) {
-                $this->saveOrUpdateDocument($staff, 'photo', null, null, $request->file('photo_file'));
+                $this->replaceDocument($staff, 'photo', null, null, $request->file('photo_file'));
             }
 
             return $staff->fresh()->load(['documents', 'shift', 'role']);
         });
+    }
+
+    /**
+     * Replace an existing document: delete any existing file(s) and create a new record.
+     */
+    private function replaceDocument(Staff $staff, string $type, ?string $number, ?string $expiry, $file)
+    {
+        // Remove existing documents of this type for this staff
+        $existing = StaffDocument::where('staff_id', $staff->id)->where('document_type', $type)->get();
+        foreach ($existing as $doc) {
+            try {
+                if ($doc->document_path && Storage::disk('public')->exists($doc->document_path)) {
+                    Storage::disk('public')->delete($doc->document_path);
+                }
+            } catch (\Exception $e) {
+                // ignore deletion errors
+            }
+            $doc->delete();
+        }
+
+        // store new file
+        $fileName = "staff-{$staff->id}-{$type}-" . time() . '.' . $file->extension();
+        $dir      = "tenants/{$staff->tenant_id}/staff-docs/{$staff->id}";
+        $path     = $file->storeAs($dir, $fileName, 'public');
+
+        return StaffDocument::create([
+            'tenant_id'       => $staff->tenant_id,
+            'staff_id'        => $staff->id,
+            'document_type'   => $type,
+            'document_number' => $number,
+            'expiry_date'     => $expiry,
+            'document_path'   => $path,
+            'created_by'      => auth()->id(),
+        ]);
     }
 
     // Yeh naya helper updateOrCreate use karta hai, taaki purana document update ho jaye agar wapas upload ho toh
