@@ -17,6 +17,13 @@ class StaffResource extends JsonResource
             // Un-commented and updated for frontend forms
             'staff_type_id'          => $this->staff_type,
             'role_name'              => $this->role ? $this->role->name : null,
+            'role'                   => $this->whenLoaded('role', $this->role ? [
+                'id'          => $this->role->id,
+                'name'        => $this->role->name,
+                'description' => $this->role->description,
+                'is_active'   => (bool) $this->role->is_active,
+                'features'    => $this->role->features,
+            ] : null),
 
             'salary_type'            => $this->salary_type,
 

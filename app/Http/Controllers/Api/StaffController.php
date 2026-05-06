@@ -327,7 +327,7 @@ class StaffController extends Controller
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
         try {
-            $staff->load(['user', 'documents']);
+            $staff->load(['user', 'documents', 'role']);
 
             $pendingAdvance = $staff->pendingAdvanceAmount();
             $pendingDA      = StaffDaLog::where('staff_id', $staff->id)
