@@ -27,8 +27,10 @@ class StaffResource extends JsonResource
 
             'salary_type'            => $this->salary_type,
 
+            'work_shift_id'             => $this->work_shift,
+
             // Updated to return Shift Object details instead of just an ID string
-            'work_shift'             => $this->shift ? [
+            'work_shift'        => $this->shift ? [
                 'id'         => $this->shift->id,
                 'name'       => $this->shift->name,
                 'start_time' => $this->shift->start_time,

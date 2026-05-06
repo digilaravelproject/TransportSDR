@@ -65,8 +65,8 @@ class StaffController extends Controller
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
         try {
-            // Eager load 'role' to optimize database queries
-            $staff = Staff::with(['user', 'role'])
+            // Eager load 'role' and 'shift' to optimize database queries
+            $staff = Staff::with(['user', 'role', 'shift'])
                 ->when($request->staff_type,   fn($q, $v) => $q->where('staff_type', $v))
                 ->when($request->work_shift,   fn($q, $v) => $q->where('work_shift', $v)) // NAYA FILTER ADD KIYA HAI
                 ->when($request->is_available, fn($q, $v) => $q->where('is_available', (bool)$v))
@@ -327,7 +327,7 @@ class StaffController extends Controller
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
         try {
-            $staff->load(['user', 'documents', 'role']);
+            $staff->load(['user', 'documents', 'role', 'shift']);
 
             $pendingAdvance = $staff->pendingAdvanceAmount();
             $pendingDA      = StaffDaLog::where('staff_id', $staff->id)

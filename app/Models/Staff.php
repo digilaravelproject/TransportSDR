@@ -130,6 +130,6 @@ class Staff extends Model
     }
     public function shift()
     {
-        return $this->belongsTo(\App\Models\Shift::class, 'work_shift', 'id');
+        return $this->belongsTo(\App\Models\Shift::class, 'work_shift', 'id')->withTrashed();
     }
 }

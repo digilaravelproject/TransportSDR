@@ -234,7 +234,7 @@ class StaffService
                 $this->saveDocumentRecord($staff, 'photo', null, null, $request->file('photo_file'));
             }
 
-            return $staff->load('documents');
+            return $staff->load(['documents', 'shift', 'role']);
         });
     }
 
@@ -292,7 +292,7 @@ class StaffService
                 $this->saveOrUpdateDocument($staff, 'photo', null, null, $request->file('photo_file'));
             }
 
-            return $staff->fresh('documents');
+            return $staff->fresh()->load(['documents', 'shift', 'role']);
         });
     }
 

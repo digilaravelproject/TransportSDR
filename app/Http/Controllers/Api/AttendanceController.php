@@ -16,11 +16,14 @@ class AttendanceController extends Controller
     public function index(Request $request)
     {
         try {
+            $tenantId = auth()->user()->tenant_id;
+
             $date = $request->query('date', Carbon::today()->toDateString());
 
             // $staffs = Staff::where('is_active', true)->get(['id', 'name', 'phone', 'staff_type']);
             $staffs = DB::table('staff')
                 ->where('is_active', true)
+                ->where('tenant_id', $tenantId)
                 ->get(['id', 'name', 'phone', 'staff_type']);
 
             $data = $staffs->map(function ($s) use ($date) {
@@ -140,6 +143,7 @@ class AttendanceController extends Controller
     public function staffRecords(Request $request)
     {
         try {
+            $tenantId = auth()->user()->tenant_id;
             // Accept both start/end or start_date/end_date
             $start = $request->query('start') ?? $request->query('start_date');
             $end   = $request->query('end') ?? $request->query('end_date');
@@ -147,6 +151,7 @@ class AttendanceController extends Controller
             // Get all active staff
             $staffs = DB::table('staff')
                 ->where('is_active', true)
+                ->where('tenant_id', $tenantId)
                 ->get(['id', 'name', 'phone', 'staff_type']);
     
             $data = $staffs->map(function ($s) use ($start, $end) {
@@ -194,10 +199,12 @@ class AttendanceController extends Controller
     public function search(Request $request)
     {
         try {
+            $tenantId = auth()->user()->tenant_id;
             $q = $request->query('query');
     
             $staffs = DB::table('staff')
                 ->where('name', 'like', "%{$q}%")
+                ->where('tenant_id', $tenantId)
                 ->select('id', 'name', 'phone')
                 ->get();
     
