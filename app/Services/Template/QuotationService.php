@@ -36,15 +36,19 @@ class QuotationService
                     'gstin'   => $lead->customer?->gstin,
                 ],
                 'trip'       => [
-                    'route'              => $lead->trip_route,
-                    'date'               => $lead->trip_date->format('d-m-Y'),
+                    'route'              => (string) ($lead->trip_route ?? ''),
+                    'date'               => $lead->trip_date?->format('d-m-Y') ?? '',
                     'return_date'        => $lead->return_date?->format('d-m-Y'),
-                    'duration'           => $lead->duration_days,
+                    'duration'           => (int) ($lead->duration_days ?? 0),
                     'vehicle_type'       => $lead->vehicle_type,
                     'seating_capacity'   => $lead->seating_capacity,
                     'number_of_vehicles' => $lead->number_of_vehicles,
-                    'pickup_address'     => $lead->pickup_address,
-                    'destinations'       => $lead->destination_points,
+                    'pickup_address'     => (string) ($lead->pickup_address ?? ''),
+                    'destinations'       => collect($lead->destination_points ?? [])->map(function($p) {
+                        if (is_array($p)) return $p['name'] ?? '';
+                        if (is_object($p)) return $p->name ?? '';
+                        return (string) $p;
+                    })->filter()->values()->toArray(),
                 ],
                 'pricing'    => [
                     'amount'          => $lead->quoted_amount,

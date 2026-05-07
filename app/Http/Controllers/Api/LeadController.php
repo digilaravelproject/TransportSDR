@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use App\Services\Notification\NotificationService;
 
 class LeadController extends Controller
@@ -95,9 +96,12 @@ class LeadController extends Controller
         // generate quotation PDF and store path on lead
         try {
             $tenant = auth()->user()->tenant;
-            $this->templateService->quotationFromLead($lead, $tenant);
+            $result = $this->templateService->quotationFromLead($lead, $tenant);
+            // refresh to ensure quotation_path saved by service is present
+            $lead->refresh();
         } catch (\Throwable $e) {
-            // ignore PDF generation failure for now
+            Log::error('Quotation generation failed for lead ' . $lead->id . ': ' . $e->getMessage());
+            $result = ['error' => $e->getMessage()];
         }
         // create notification
         try {
@@ -106,11 +110,16 @@ class LeadController extends Controller
             // ignore notification failure
         }
 
-        return response()->json([
+        $response = [
             'success' => true,
             'message' => 'Lead created successfully.',
             'data' => $lead,
-        ], 201);
+        ];
+        if (request()->boolean('debug')) {
+            $response['debug'] = $result ?? null;
+        }
+
+        return response()->json($response, 201);
     }
 
     // GET /api/v1/leads/{lead}
@@ -166,16 +175,22 @@ class LeadController extends Controller
         // regenerate quotation PDF when lead changes
         try {
             $tenant = auth()->user()->tenant;
-            $this->templateService->quotationFromLead($lead, $tenant);
+            $result = $this->templateService->quotationFromLead($lead, $tenant);
+            $lead->refresh();
         } catch (\Throwable $e) {
-            // ignore failures
+            Log::error('Quotation regeneration failed for lead ' . $lead->id . ': ' . $e->getMessage());
+            $result = ['error' => $e->getMessage()];
         }
 
         try {
             $this->notificationService->create('Lead Updated: ' . $lead->customer_name, "Lead {$lead->lead_number} updated", ['lead_id' => $lead->id], 'lead', 'medium');
         } catch (\Throwable $e) {}
 
-        return response()->json(['success' => true, 'message' => 'Lead updated.', 'data' => $lead]);
+        $response = ['success' => true, 'message' => 'Lead updated.', 'data' => $lead];
+        if (request()->boolean('debug')) {
+            $response['debug'] = $result ?? null;
+        }
+        return response()->json($response);
     }
 
     // DELETE /api/v1/leads/{lead}
