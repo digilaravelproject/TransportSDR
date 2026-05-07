@@ -41,7 +41,7 @@ class LeadController extends Controller
         }
 
         $perPage = (int) ($request->per_page ?? 20);
-        $leads = $query->with(['notes.author', 'vehicleTypeDetails', 'followups.author', 'vehicle', 'driver', 'expenses.creator', 'dutySheets.uploader'])->orderBy('created_at', 'desc')->paginate($perPage)->withQueryString();
+        $leads = $query->with(['notes.author', 'vehicleTypeDetails', 'followups.author', 'expenses.creator', 'dutySheets.uploader'])->orderBy('created_at', 'desc')->paginate($perPage)->withQueryString();
 
         return response()->json([
             'success' => true,

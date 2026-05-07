@@ -133,7 +133,15 @@ class VendorController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator']);
 
-        $q = Staff::drivers()->available();
+        // Use staff from the same tenant as the vendor. Skip global tenant scope so
+        // we can explicitly filter by the vendor's tenant_id even if caller auth differs.
+        // Some installations store driver role in `staff_type`, others use `work_shift`.
+        // Match either to reliably find drivers across deployments.
+        $q = Staff::withoutGlobalScopes()->available()
+            ->where('tenant_id', $vendor->tenant_id)
+            ->where(function($qq) {
+                $qq->where('staff_type', '4');
+            });
 
         // exclude drivers already assigned to this vendor
         $q->whereNotIn('id', function ($sub) use ($vendor) {
@@ -142,11 +150,36 @@ class VendorController extends Controller
 
         if ($request->search) {
             $s = $request->search;
-            $q->where('name', 'like', "%{$s}%")->orWhere('phone', 'like', "%{$s}%");
+            $q->where(function($qq) use ($s) {
+                $qq->where('name', 'like', "%{$s}%")->orWhere('phone', 'like', "%{$s}%");
+            });
         }
 
         $per = $request->integer('per_page', 20);
         $p = $q->latest()->paginate($per);
+
+        // Debug mode: return diagnostic info to help troubleshoot tenant/filters
+        if ($request->boolean('debug')) {
+            $tenantDriversCount = Staff::withoutGlobalScopes()->where('tenant_id', $vendor->tenant_id)
+                ->where(function($qq) {
+                    $qq->where('staff_type', 'driver')->orWhere('work_shift', 'driver');
+                })->count();
+            $assignedIds = \DB::table('vendor_staff')->where('vendor_id', $vendor->id)->pluck('staff_id')->toArray();
+            $availableCount = $p->total();
+
+            return response()->json([
+                'success' => true,
+                'data' => $p->items(),
+                'meta' => ['total' => $availableCount],
+                'diagnostic' => [
+                    'vendor_id' => $vendor->id,
+                    'vendor_tenant_id' => $vendor->tenant_id,
+                    'drivers_in_tenant_count' => $tenantDriversCount,
+                    'assigned_driver_ids' => $assignedIds,
+                    'available_driver_count' => $availableCount,
+                ],
+            ]);
+        }
 
         return response()->json(['success' => true, 'data' => $p->items(), 'meta' => ['total' => $p->total()]]);
     }
