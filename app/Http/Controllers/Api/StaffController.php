@@ -270,30 +270,30 @@ class StaffController extends Controller
     // ─────────────────────────────────────────────────
     public function giveAdvance(Request $request, Staff $staff)
     {
-
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
         $data = $request->validate([
             'amount'          => 'required|numeric|min:1',
             'advance_date'    => 'required|date',
             'reason'          => 'nullable|string|max:255',
-            'payment_mode'    => 'required|in:cash,bank,upi',
+            'payment_mode'    => 'nullable|in:cash,bank,upi',
             'transaction_ref' => 'nullable|string|max:100',
             'notes'           => 'nullable|string',
         ], [
             'amount.required'       => 'Advance amount is required.',
             'advance_date.required' => 'Advance date is required.',
-            'payment_mode.required' => 'Payment mode is required.',
         ]);
 
         try {
             $advance = StaffAdvance::create(array_merge($data, [
                 'staff_id' => $staff->id,
+                'tenant_id' => auth()->user()->tenant_id ?? null,
+                'created_by' => auth()->id(),
             ]));
 
             return response()->json([
                 'success' => true,
-                'message' => "Advance of ₹{$advance->amount} given to {$staff->name}.",
+                'message' => "Advance of ₹{$advance->amount} recorded for {$staff->name}.",
                 'data'    => $advance,
             ], 201);
         } catch (\Exception $e) {
@@ -314,14 +314,15 @@ class StaffController extends Controller
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
         try {
-            $advances = StaffAdvance::where('staff_id', $staff->id)
-                ->when($request->is_deducted, fn($q, $v) => $q->where('is_deducted', (bool)$v))
-                ->latest()
-                ->paginate(20);
+            $query = StaffAdvance::where('staff_id', $staff->id);
+            if ($request->has('is_deducted')) $query->where('is_deducted', (bool)$request->is_deducted);
+
+            $advances = $query->latest()->paginate($request->integer('per_page', 20));
 
             return response()->json([
                 'success' => true,
                 'data'    => [
+                    'total_advance' => (float) StaffAdvance::where('staff_id', $staff->id)->sum('amount'),
                     'pending_amount' => $staff->pendingAdvanceAmount(),
                     'advances'       => $advances,
                 ],
@@ -377,49 +378,67 @@ class StaffController extends Controller
         $this->checkRole(['superadmin', 'admin']);
 
         try {
+            // Return aggregated performance for all staff (basic summary)
             $month = $request->month ?? now()->format('m');
             $year  = $request->year  ?? now()->format('Y');
 
-            $staff = Staff::withCount([
+            $list = Staff::withCount([
                 'driverTrips as driver_trips_count' => fn($q) => $q->whereMonth('trip_date', $month)->whereYear('trip_date', $year),
                 'helperTrips as helper_trips_count' => fn($q) => $q->whereMonth('trip_date', $month)->whereYear('trip_date', $year),
-            ])->get()->map(function ($s) use ($month, $year) {
-                $presentDays = StaffAttendance::where('staff_id', $s->id)
-                    ->whereMonth('date', $month)
-                    ->whereYear('date', $year)
-                    ->whereIn('status', ['present', 'on_trip'])
-                    ->count();
-
-                return [
-                    'id'           => $s->id,
-                    'name'         => $s->name,
-                    'type'         => $s->staff_type,
-                    'total_trips'  => $s->driver_trips_count + $s->helper_trips_count,
-                    'present_days' => $presentDays,
-                    'is_available' => $s->is_available,
-                ];
-            });
-
-            return response()->json([
-                'success' => true,
-                'data'    => [
-                    'period'      => ['month' => $month, 'year' => $year],
-                    'performance' => $staff,
-                ],
+            ])->get()->map(fn($s) => [
+                'id' => $s->id,
+                'name' => $s->name,
+                'total_trips' => $s->driver_trips_count + $s->helper_trips_count,
+                'is_available' => $s->is_available,
             ]);
+
+            return response()->json(['success' => true, 'data' => ['period' => ['month' => $month, 'year' => $year], 'performance' => $list]]);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'An unexpected error occurred while fetching performance data.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return response()->json(['success' => false, 'message' => 'An unexpected error occurred while fetching performance data.', 'error' => $e->getMessage()], 500);
         }
     }
 
     public function getPerformance(Staff $staff)
     {
-        $metric = \App\Models\StaffPerformanceMetric::where('staff_id', $staff->id)->latest()->first();
-        return response()->json(['success' => true, 'data' => $metric]);
+        $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
+
+        try {
+            $metric = \App\Models\StaffPerformanceMetric::where('staff_id', $staff->id)->latest()->first();
+
+            // Monthly trips (last 6 months)
+            $months = [];
+            for ($i = 5; $i >= 0; $i--) {
+                $dt = now()->subMonths($i);
+                $label = $dt->format('M');
+                $count = Trip::where(function($q) use ($staff){ $q->where('driver_id', $staff->id)->orWhere('helper_id', $staff->id); })
+                    ->whereMonth('trip_date', $dt->month)
+                    ->whereYear('trip_date', $dt->year)
+                    ->count();
+                $months[] = ['month' => $label, 'trips' => $count];
+            }
+
+            $recentFeedback = Trip::where(function($q) use ($staff){ $q->where('driver_id', $staff->id)->orWhere('helper_id', $staff->id); })
+                ->whereNotNull('notes')
+                ->latest('trip_date')
+                ->take(5)
+                ->get(['trip_number', 'notes']);
+
+            $response = [
+                'overall_score' => $metric?->overall_score ?? null,
+                'efficiency_metrics' => [
+                    'on_time' => $metric?->on_time_percentage ?? null,
+                    'fuel_efficiency' => $metric?->fuel_efficiency ?? null,
+                    'safety_violations' => $metric?->safety_violations ?? 0,
+                    'customer_satisfaction' => $metric?->customer_satisfaction ?? null,
+                ],
+                'monthly_trip_history' => $months,
+                'recent_feedback' => $recentFeedback,
+            ];
+
+            return response()->json(['success' => true, 'data' => $response]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error fetching performance.', 'error' => $e->getMessage()], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────
@@ -506,38 +525,81 @@ class StaffController extends Controller
     public function dutyHistory(Staff $staff)
     {
         try {
-            // Saari history get karein
-            $history = \App\Models\StaffAttendance::where('staff_id', $staff->id)
-                ->whereNotNull('check_in')
-                ->whereNotNull('check_out')
-                ->latest('date')
-                ->get(['date', 'trip_purpose', 'working_hours', 'check_in', 'check_out']);
+            $query = StaffAttendance::where('staff_id', $staff->id);
 
-            // Dates for summary calculation
-            $today = now()->toDateString();
-            $startOfWeek = now()->startOfWeek()->toDateString();
-            $startOfMonth = now()->startOfMonth()->toDateString();
+            $logs = $query->latest('date')->paginate(30);
 
-            // Summary calculate karein
-            $summary = [
-                'today'   => $history->where('date', '>=', $today)->sum('working_hours'),
-                'weekly'  => $history->where('date', '>=', $startOfWeek)->sum('working_hours'),
-                'monthly' => $history->where('date', '>=', $startOfMonth)->sum('working_hours'),
-            ];
+            $today = StaffAttendance::where('staff_id', $staff->id)->whereDate('date', now()->toDateString())->sum('total_hours');
+            $weekly = StaffAttendance::where('staff_id', $staff->id)->whereBetween('date', [now()->startOfWeek()->toDateString(), now()->toDateString()])->sum('total_hours');
+            $monthly = StaffAttendance::where('staff_id', $staff->id)->whereBetween('date', [now()->startOfMonth()->toDateString(), now()->toDateString()])->sum('total_hours');
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'summary' => $summary,
-                    'logs'    => $history
-                ]
+                    'summary' => ['today' => (float)$today, 'weekly' => (float)$weekly, 'monthly' => (float)$monthly],
+                    'logs'    => $logs,
+                ],
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'An unexpected error occurred while fetching duty history.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return response()->json(['success' => false, 'message' => 'An unexpected error occurred while fetching duty history.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    // POST /api/v1/staff/{staff}/duty-logs
+    public function storeDuty(Request $request, Staff $staff)
+    {
+        $this->checkRole(['superadmin', 'admin', 'operator']);
+
+        $data = $request->validate([
+            'date' => 'required|date',
+            'in_time' => 'nullable|date_format:Y-m-d H:i:s',
+            'out_time' => 'nullable|date_format:Y-m-d H:i:s',
+            'total_hours' => 'nullable|numeric|min:0',
+            'status' => 'nullable|string|max:50',
+            'notes' => 'nullable|string',
+        ]);
+
+        try {
+            // Normalize date and time values to match DB columns
+            $date = \Carbon\Carbon::parse($data['date'])->toDateString();
+            $in_time = isset($data['in_time']) ? \Carbon\Carbon::parse($data['in_time'])->format('H:i:s') : null;
+            $out_time = isset($data['out_time']) ? \Carbon\Carbon::parse($data['out_time'])->format('H:i:s') : null;
+
+            $values = [
+                'in_time' => $in_time,
+                'out_time' => $out_time,
+                'total_hours' => $data['total_hours'] ?? null,
+                'status' => $data['status'] ?? null,
+                'notes' => $data['notes'] ?? null,
+            ];
+
+            // Use updateOrCreate to avoid duplicate unique (staff_id + date) errors
+            $attendance = StaffAttendance::updateOrCreate(
+                ['staff_id' => $staff->id, 'date' => $date],
+                $values
+            );
+
+            return response()->json(['success' => true, 'message' => 'Duty record saved.', 'data' => $attendance], 200);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to add duty record.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    // GET /api/v1/staff/{staff}/duty-hours
+    public function getDutyHours(Request $request, Staff $staff)
+    {
+        $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
+
+        try {
+            $today = StaffAttendance::where('staff_id', $staff->id)->whereDate('date', now()->toDateString())->sum('total_hours');
+            $weekly = StaffAttendance::where('staff_id', $staff->id)->whereBetween('date', [now()->startOfWeek()->toDateString(), now()->toDateString()])->sum('total_hours');
+            $monthly = StaffAttendance::where('staff_id', $staff->id)->whereBetween('date', [now()->startOfMonth()->toDateString(), now()->toDateString()])->sum('total_hours');
+
+            $logs = StaffAttendance::where('staff_id', $staff->id)->latest('date')->get(['date', 'status', 'in_time', 'out_time', 'total_hours', 'notes']);
+
+            return response()->json(['success' => true, 'data' => ['summary' => ['today' => (float)$today, 'weekly' => (float)$weekly, 'monthly' => (float)$monthly], 'logs' => $logs]]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to fetch duty hours.', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -600,40 +662,46 @@ class StaffController extends Controller
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
         try {
-            // 1. Create base query with year and month filters
             $query = StaffSalary::where('staff_id', $staff->id)
                 ->when($request->year, fn($q, $v) => $q->where('year', $v))
-                ->when($request->month, fn($q, $v) => $q->where('month', 'like', "%-" . str_pad($v, 2, '0', STR_PAD_LEFT))) // Matches 'YYYY-MM' format
+                ->when($request->month, fn($q, $v) => $q->where('month', $v))
                 ->when($request->payment_status, fn($q, $v) => $q->where('payment_status', $v));
 
-            // 2. Fetch paginated history list
-            $salaries = (clone $query)
-                ->orderBy('year', 'desc')
-                ->orderBy('month', 'desc')
-                ->paginate(12);
+            $salaries = (clone $query)->orderBy('year', 'desc')->orderBy('month', 'desc')->paginate($request->integer('per_page', 12));
 
-            // 3. Calculate Summary for the top cards
             $totalPaid = (clone $query)->where('payment_status', 'paid')->sum('net_salary');
             $totalPending = (clone $query)->where('payment_status', 'pending')->sum('net_salary');
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Salary records retrieved successfully.',
-                'data'    => [
-                    'summary' => [
-                        'monthly_salary' => $staff->basic_salary, // Card 1: Monthly Salary
-                        'total_paid'     => $totalPaid,           // Card 2: Green Total Paid
-                        'total_pending'  => $totalPending,        // Card 3: Red Pending Adjust
-                    ],
-                    'financial_history' => $salaries,             // List below the cards
-                ],
-            ]);
+            return response()->json(['success' => true, 'message' => 'Salary records retrieved successfully.', 'data' => ['summary' => ['monthly_salary' => $staff->basic_salary, 'total_paid' => $totalPaid, 'total_pending' => $totalPending], 'financial_history' => $salaries]]);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'An unexpected error occurred while fetching salary history.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return response()->json(['success' => false, 'message' => 'An unexpected error occurred while fetching salary history.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    // POST /api/v1/staff/{staff}/pay-salary
+    public function paySalaryForStaff(Request $request, Staff $staff)
+    {
+        $this->checkRole(['superadmin', 'admin', 'accountant']);
+
+        $data = $request->validate([
+            'month' => 'required|integer|min:1|max:12',
+            'year'  => 'required|integer',
+            'amount' => 'required|numeric|min:0',
+            'payment_mode' => 'required|in:cash,bank,upi,cheque',
+            'paid_on' => 'required|date',
+            'transaction_ref' => 'nullable|string|max:100',
+            'notes' => 'nullable|string',
+        ]);
+
+        try {
+            $salary = StaffSalary::updateOrCreate(
+                ['staff_id' => $staff->id, 'month' => $data['month'], 'year' => $data['year']],
+                ['basic_salary' => $staff->basic_salary ?? 0, 'paid_on' => $data['paid_on'], 'payment_mode' => $data['payment_mode'], 'payment_status' => 'paid', 'transaction_ref' => $data['transaction_ref'] ?? null, 'notes' => $data['notes'] ?? null, 'net_salary' => $data['amount']]
+            );
+
+            return response()->json(['success' => true, 'message' => 'Salary paid successfully.', 'data' => $salary]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to record salary payment.', 'error' => $e->getMessage()], 500);
         }
     }
 

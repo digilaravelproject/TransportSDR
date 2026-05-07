@@ -159,39 +159,32 @@ Route::middleware(['auth:sanctum', 'tenant'])
 
         Route::apiResource('staff', Api\StaffController::class);
         Route::get('staff/search', [Api\StaffController::class, 'search']);
-        Route::post('staff/salary/filter', [Api\StaffController::class, 'salaryFilter']);
         Route::prefix('staff')->group(function () {
             Route::get('performance',                        [Api\StaffController::class, 'performance']);
             Route::prefix('{staff}')->group(function () {
-                // Salary Filter/Search with POST
-
-                Route::get('performance-report', [Api\StaffController::class, 'getPerformance']);
-                Route::get('duty-logs', [Api\StaffController::class, 'dutyHistory']);
 
                 Route::get('documents', [Api\StaffController::class, 'documents']);
-
                 Route::post('document', [Api\StaffController::class, 'uploadDocument']);
-                // Advance
-                Route::post('advance',                       [Api\StaffController::class, 'giveAdvance']);
-                Route::get('advances',                       [Api\StaffController::class, 'advanceList']);
 
-                // DA
-                Route::post('da',                            [Api\StaffController::class, 'calculateDA']);
-                Route::get('da',                             [Api\StaffController::class, 'daList']);
+                // Performance for a specific staff
+                Route::get('performance-report', [Api\StaffController::class, 'getPerformance']);
 
+                // Duty logs (list + create) and summary
+                Route::get('duty-logs', [Api\StaffController::class, 'dutyHistory']);
+                Route::post('duty-logs', [Api\StaffController::class, 'storeDuty']);
+                Route::get('duty-hours', [Api\StaffController::class, 'getDutyHours']);
 
-
-                // Salary
-                Route::post('salary/generate',               [Api\StaffController::class, 'generateSalary']);
-                Route::get('salary',                         [Api\StaffController::class, 'salaryList']);
-                Route::post('salary/{salary}/pay',           [Api\StaffController::class, 'paySalary']);
-                Route::get('salary/{salary}/slip',           [Api\StaffController::class, 'salarySlip']);
-
-                // Documents
-                // Route::post('document',                      [Api\StaffController::class, 'uploadDocument']);
+                // Advances
+                Route::post('advance', [Api\StaffController::class, 'giveAdvance']);
+                Route::get('advances', [Api\StaffController::class, 'advanceList']);
 
                 // Trips
-                Route::get('trips',                          [Api\StaffController::class, 'tripHistory']);
+                Route::get('trips', [Api\StaffController::class, 'tripHistory']);
+
+                // Salary: list and pay
+                Route::get('salary', [Api\StaffController::class, 'salaryList']);
+                Route::post('pay-salary', [Api\StaffController::class, 'paySalaryForStaff']);
+
             });
         });
         // MODULE 5 — Corporate / Company Duty Management
