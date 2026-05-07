@@ -204,6 +204,10 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::get('/{vendor}/available-vehicles', [Api\VendorController::class, 'availableVehicles']);
             Route::post('/{vendor}/assign-vehicles', [Api\VendorController::class, 'assignVehicles']);
             Route::delete('/{vendor}/remove-vehicle/{vehicle}', [Api\VendorController::class, 'removeVehicle']);
+            // Driver assignment endpoints for vendors
+            Route::get('/{vendor}/available-drivers', [Api\VendorController::class, 'availableDrivers']);
+            Route::post('/{vendor}/assign-drivers', [Api\VendorController::class, 'assignDrivers']);
+            Route::delete('/{vendor}/remove-driver/{staff}', [Api\VendorController::class, 'removeDriver']);
             Route::post('/{vendor}/bills', [Api\VendorController::class, 'addBill']);
         });
 

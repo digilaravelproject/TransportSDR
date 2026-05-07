@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Vendor, VendorBill, Vehicle};
+use App\Models\{Vendor, VendorBill, Vehicle, Staff};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{Auth, Storage, Validator};
 
@@ -120,7 +120,63 @@ class VendorController extends Controller
             'vehicleTypeDetails'
         ]);
         $bills = VendorBill::where('vendor_id', $vendor->id)->orderBy('billing_date', 'desc')->get();
-        return response()->json(['success' => true, 'data' => ['vendor' => $vendor, 'assigned_vehicles' => $vendor->vehicles, 'billing_history' => $bills]]);
+        return response()->json(['success' => true, 'data' => [
+            'vendor' => $vendor,
+            'assigned_vehicles' => $vendor->vehicles,
+            'assigned_drivers' => $vendor->drivers()->get(),
+            'billing_history' => $bills
+        ]]);
+    }
+
+    // GET /api/v1/vendors/{vendor}/available-drivers
+    public function availableDrivers(Request $request, Vendor $vendor)
+    {
+        $this->checkRole(['superadmin', 'admin', 'operator']);
+
+        $q = Staff::drivers()->available();
+
+        // exclude drivers already assigned to this vendor
+        $q->whereNotIn('id', function ($sub) use ($vendor) {
+            $sub->select('staff_id')->from('vendor_staff')->where('vendor_id', $vendor->id);
+        });
+
+        if ($request->search) {
+            $s = $request->search;
+            $q->where('name', 'like', "%{$s}%")->orWhere('phone', 'like', "%{$s}%");
+        }
+
+        $per = $request->integer('per_page', 20);
+        $p = $q->latest()->paginate($per);
+
+        return response()->json(['success' => true, 'data' => $p->items(), 'meta' => ['total' => $p->total()]]);
+    }
+
+    // POST /api/v1/vendors/{vendor}/assign-drivers
+    public function assignDrivers(Request $request, Vendor $vendor)
+    {
+        $this->checkRole(['superadmin', 'admin']);
+
+        $v = \Validator::make($request->all(), ['staff_ids' => 'required|array']);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $ids = $request->staff_ids;
+        $tenant_id = Auth::user()->tenant_id ?? null;
+        foreach ($ids as $staffId) {
+            \DB::table('vendor_staff')->updateOrInsert(
+                ['vendor_id' => $vendor->id, 'staff_id' => $staffId],
+                ['tenant_id' => $tenant_id, 'assigned_by' => Auth::id(), 'updated_at' => now(), 'created_at' => now()]
+            );
+        }
+
+        return response()->json(['success' => true, 'message' => 'Drivers assigned to vendor']);
+    }
+
+    // DELETE /api/v1/vendors/{vendor}/remove-driver/{staff}
+    public function removeDriver(Vendor $vendor, Staff $staff)
+    {
+        $this->checkRole(['superadmin', 'admin']);
+        \DB::table('vendor_staff')->where('vendor_id', $vendor->id)->where('staff_id', $staff->id)->delete();
+        return response()->json(['success' => true, 'message' => 'Driver removed from vendor']);
     }
 
     // GET /api/v1/vendors/{vendor}/available-vehicles

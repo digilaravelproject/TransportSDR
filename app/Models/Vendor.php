@@ -36,6 +36,11 @@ class Vendor extends Model
         return $this->belongsToMany(Vehicle::class, 'vendor_vehicle')->withTimestamps();
     }
 
+    public function drivers()
+    {
+        return $this->belongsToMany(Staff::class, 'vendor_staff', 'vendor_id', 'staff_id')->withTimestamps();
+    }
+
     public function bills()
     {
         return $this->hasMany(VendorBill::class);
