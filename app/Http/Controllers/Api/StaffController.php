@@ -694,7 +694,7 @@ class StaffController extends Controller
     // GET /api/v1/staff/{id}/salary
     // Salary history with Summary (For UI Image 11)
     // ─────────────────────────────────────────────────
-    public function salaryList(Request $request, Staff $staff)
+    public function salaryList_old(Request $request, Staff $staff)
     {
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
@@ -735,18 +735,43 @@ class StaffController extends Controller
             $advancesList = \App\Models\StaffAdvance::where('staff_id', $staff->id)
                 ->whereYear('advance_date', $year)
                 ->whereMonth('advance_date', $month)
-                ->orderBy('advance_date', 'desc')
+                ->orderBy('advance_date', 'asc')
                 ->get();
 
             $salaryPayments = StaffSalary::where('staff_id', $staff->id)
                 ->where('year', $year)
                 ->where('month', $month)
                 ->where('payment_status', 'paid')
-                ->orderBy('paid_on', 'desc')
+                ->orderBy('paid_on', 'asc')
                 ->get();
 
-            $paymentsCombined = collect()->concat($advancesList)->concat($salaryPayments)->sortByDesc(function($p){
-                return $p->paid_on ?? $p->advance_date ?? $p->created_at ?? now();
+            // Normalize payments into a consistent shape and sort ascending by date
+            $paymentsNormalized = collect();
+
+            foreach ($advancesList as $a) {
+                $paymentsNormalized->push([
+                    'type' => 'advance',
+                    'id' => $a->id,
+                    'amount' => (float) $a->amount,
+                    'date' => $a->advance_date?->toDateString() ?? $a->created_at?->toDateString(),
+                    'payment_mode' => $a->payment_mode,
+                    'notes' => $a->reason ?? null,
+                ]);
+            }
+
+            foreach ($salaryPayments as $s) {
+                $paymentsNormalized->push([
+                    'type' => 'salary',
+                    'id' => $s->id,
+                    'amount' => (float) $s->net_salary,
+                    'date' => $s->paid_on?->toDateString() ?? $s->created_at?->toDateString(),
+                    'payment_mode' => $s->payment_mode,
+                    'notes' => $s->transaction_ref ?? null,
+                ]);
+            }
+
+            $paymentsCombined = $paymentsNormalized->sortBy(function ($p) {
+                return $p['date'] ?? now()->toDateString();
             })->values();
 
             return response()->json(['success' => true, 'message' => 'Salary records retrieved successfully.', 'data' => ['summary' => ['monthly_salary' => $monthlySalary, 'total_paid' => round($totalPaid,2), 'total_pending' => round($totalPending,2)], 'financial_history' => $salaries, 'payments' => $paymentsCombined]]);
@@ -755,6 +780,347 @@ class StaffController extends Controller
         }
     }
 
+    public function salaryList_new(Request $request, Staff $staff)
+    {
+        $this->checkRole(['superadmin', 'admin', 'accountant']);
+
+        try {
+            // Determine target month/year (defaults to current)
+            $month = $request->month ?? now()->month;
+            $year = $request->year ?? now()->year;
+
+            // Salaries for requested filters
+            $query = StaffSalary::where('staff_id', $staff->id)
+                ->when($request->payment_status, fn($q, $v) => $q->where('payment_status', $v))
+                ->when($request->year, fn($q, $v) => $q->where('year', $v))
+                ->when($request->month, fn($q, $v) => $q->where('month', $v));
+
+            $salaries = (clone $query)
+                ->orderBy('year', 'desc')
+                ->orderBy('month', 'desc')
+                ->paginate($request->integer('per_page', 12));
+
+            // Total salary paid for this month (salary payments)
+            $totalSalaryPaid = StaffSalary::where('staff_id', $staff->id)
+                ->where('year', $year)
+                ->where('month', $month)
+                ->where('payment_status', 'paid')
+                ->sum('net_salary');
+
+            // Total advance payments for this month
+            $totalAdvancePaid = \App\Models\StaffAdvance::where('staff_id', $staff->id)
+                ->whereYear('advance_date', $year)
+                ->whereMonth('advance_date', $month)
+                ->sum('amount');
+
+            $totalPaid = (float) $totalSalaryPaid + (float) $totalAdvancePaid;
+
+            // monthly salary (base)
+            $monthlySalary = (float) $staff->basic_salary;
+
+            $totalPending = max(0, $monthlySalary - $totalPaid);
+
+            // Convert paginator collection
+            $salaryCollection = $salaries->getCollection()->map(function ($salary) {
+
+                // Get advances for this salary month/year
+                $advancesList = \App\Models\StaffAdvance::where('staff_id', $salary->staff_id)
+                    ->whereYear('advance_date', $salary->year)
+                    ->whereMonth('advance_date', $salary->month)
+                    ->orderBy('advance_date', 'asc')
+                    ->get();
+
+                // Get salary payments
+                $salaryPayments = StaffSalary::where('staff_id', $salary->staff_id)
+                    ->where('year', $salary->year)
+                    ->where('month', $salary->month)
+                    ->where('payment_status', 'paid')
+                    ->orderBy('paid_on', 'asc')
+                    ->get();
+
+                // Normalize payments
+                $paymentsNormalized = collect();
+
+                foreach ($advancesList as $a) {
+                    $paymentsNormalized->push([
+                        'type' => 'advance',
+                        'id' => $a->id,
+                        'amount' => (float) $a->amount,
+                        'date' => $a->advance_date?->toDateString() ?? $a->created_at?->toDateString(),
+                        'payment_mode' => $a->payment_mode,
+                        'notes' => $a->reason ?? null,
+                    ]);
+                }
+
+                foreach ($salaryPayments as $s) {
+                    $paymentsNormalized->push([
+                        'type' => 'salary',
+                        'id' => $s->id,
+                        'amount' => (float) $s->net_salary,
+                        'date' => $s->paid_on?->toDateString() ?? $s->created_at?->toDateString(),
+                        'payment_mode' => $s->payment_mode,
+                        'notes' => $s->transaction_ref ?? null,
+                    ]);
+                }
+
+                $paymentsCombined = $paymentsNormalized
+                    ->sortBy(function ($p) {
+                        return $p['date'] ?? now()->toDateString();
+                    })
+                    ->values();
+
+                // Add payments inside each salary row
+                $salary->payments = $paymentsCombined;
+
+                return $salary;
+            });
+
+            // Replace paginator collection
+            $salaries->setCollection($salaryCollection);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Salary records retrieved successfully.',
+                'data' => [
+                    'summary' => [
+                        'monthly_salary' => $monthlySalary,
+                        'total_paid' => round($totalPaid, 2),
+                        'total_pending' => round($totalPending, 2),
+                    ],
+                    'financial_history' => $salaries,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching salary history.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    public function salaryList(Request $request, Staff $staff)
+{
+    $this->checkRole(['superadmin', 'admin', 'accountant']);
+
+    try {
+
+        // Determine target month/year (defaults to current)
+        $month = $request->month ?? now()->month;
+        $year  = $request->year ?? now()->year;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Salary Records Query
+        |--------------------------------------------------------------------------
+        */
+        $query = StaffSalary::where('staff_id', $staff->id)
+            ->when($request->payment_status, fn($q, $v) => $q->where('payment_status', $v))
+            ->when($request->year, fn($q, $v) => $q->where('year', $v))
+            ->when($request->month, fn($q, $v) => $q->where('month', $v));
+
+        $salaries = (clone $query)
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->paginate($request->integer('per_page', 12));
+
+        /*
+        |--------------------------------------------------------------------------
+        | Current Month Summary
+        |--------------------------------------------------------------------------
+        */
+
+        // Total salary paid for current month
+        $totalSalaryPaid = StaffSalary::where('staff_id', $staff->id)
+            ->where('year', $year)
+            ->where('month', $month)
+            ->where('payment_status', 'paid')
+            ->sum('net_salary');
+
+        // Total advance payments for current month
+        $totalAdvancePaid = \App\Models\StaffAdvance::where('staff_id', $staff->id)
+            ->whereYear('advance_date', $year)
+            ->whereMonth('advance_date', $month)
+            ->sum('amount');
+
+        $totalPaid = (float) $totalSalaryPaid + (float) $totalAdvancePaid;
+
+        // Monthly salary
+        $monthlySalary = (float) $staff->basic_salary;
+
+        $totalPending = max(0, $monthlySalary - $totalPaid);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Existing Salary Records
+        |--------------------------------------------------------------------------
+        */
+        $salaryCollection = $salaries->getCollection()->map(function ($salary) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Advances for this salary month/year
+            |--------------------------------------------------------------------------
+            */
+            $advancesList = \App\Models\StaffAdvance::where('staff_id', $salary->staff_id)
+                ->whereYear('advance_date', $salary->year)
+                ->whereMonth('advance_date', $salary->month)
+                ->orderBy('advance_date', 'asc')
+                ->get();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Salary payments for this month/year
+            |--------------------------------------------------------------------------
+            */
+            $salaryPayments = StaffSalary::where('staff_id', $salary->staff_id)
+                ->where('year', $salary->year)
+                ->where('month', $salary->month)
+                ->where('payment_status', 'paid')
+                ->orderBy('paid_on', 'asc')
+                ->get();
+
+            $paymentsNormalized = collect();
+
+            // Advance payments
+            foreach ($advancesList as $a) {
+
+                $paymentsNormalized->push([
+                    'type'         => 'advance',
+                    'id'           => $a->id,
+                    'amount'       => (float) $a->amount,
+                    'date'         => $a->advance_date?->toDateString()
+                                        ?? $a->created_at?->toDateString(),
+                    'payment_mode' => $a->payment_mode,
+                    'notes'        => $a->reason ?? null,
+                ]);
+            }
+
+            // Salary payments
+            foreach ($salaryPayments as $s) {
+
+                $paymentsNormalized->push([
+                    'type'         => 'salary',
+                    'id'           => $s->id,
+                    'amount'       => (float) $s->net_salary,
+                    'date'         => $s->paid_on?->toDateString()
+                                        ?? $s->created_at?->toDateString(),
+                    'payment_mode' => $s->payment_mode,
+                    'notes'        => $s->transaction_ref ?? null,
+                ]);
+            }
+
+            // Sort payments
+            $paymentsCombined = $paymentsNormalized
+                ->sortBy(function ($payment) {
+                    return $payment['date'] ?? now()->toDateString();
+                })
+                ->values();
+
+            // Add payments in salary row
+            $salary->payments = $paymentsCombined;
+
+            return $salary;
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Add Advance-Only Months (Without Salary Record)
+        |--------------------------------------------------------------------------
+        */
+        $advanceOnlyRecords = collect();
+
+        $allAdvances = \App\Models\StaffAdvance::where('staff_id', $staff->id)
+            ->orderBy('advance_date', 'desc')
+            ->get()
+            ->groupBy(function ($item) {
+                return date('Y-m', strtotime($item->advance_date));
+            });
+
+        foreach ($allAdvances as $groupKey => $advances) {
+
+            $groupYear  = date('Y', strtotime($groupKey));
+            $groupMonth = date('m', strtotime($groupKey));
+
+            // Check salary exists for this month/year
+            $salaryExists = $salaryCollection->first(function ($salary) use ($groupYear, $groupMonth) {
+
+                return (int)$salary->year == (int)$groupYear
+                    && (int)$salary->month == (int)$groupMonth;
+            });
+
+            // If salary not exists then create payments-only row
+            if (!$salaryExists) {
+
+                $paymentsNormalized = collect();
+
+                foreach ($advances as $a) {
+
+                    $paymentsNormalized->push([
+                        'type'         => 'advance',
+                        'id'           => $a->id,
+                        'amount'       => (float) $a->amount,
+                        'date'         => $a->advance_date?->toDateString()
+                                            ?? $a->created_at?->toDateString(),
+                        'payment_mode' => $a->payment_mode,
+                        'notes'        => $a->reason ?? null,
+                    ]);
+                }
+
+                $advanceOnlyRecords->push([
+                    'payments' => $paymentsNormalized
+                        ->sortBy('date')
+                        ->values()
+                ]);
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Merge Salary Records + Advance Only Records
+        |--------------------------------------------------------------------------
+        */
+        $finalCollection = $salaryCollection
+            ->concat($advanceOnlyRecords)
+            ->values();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Replace paginator collection
+        |--------------------------------------------------------------------------
+        */
+        $salaries->setCollection($finalCollection);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Final Response
+        |--------------------------------------------------------------------------
+        */
+        return response()->json([
+            'success' => true,
+            'message' => 'Salary records retrieved successfully.',
+            'data' => [
+
+                'summary' => [
+                    'monthly_salary' => $monthlySalary,
+                    'total_paid'     => round($totalPaid, 2),
+                    'total_pending'  => round($totalPending, 2),
+                ],
+
+                'financial_history' => $salaries,
+            ]
+        ]);
+
+    } catch (\Exception $e) {
+
+        return response()->json([
+            'success' => false,
+            'message' => 'An unexpected error occurred while fetching salary history.',
+            'error'   => $e->getMessage()
+        ], 500);
+    }
+}
     // POST /api/v1/staff/{staff}/pay-salary
     public function paySalaryForStaff(Request $request, Staff $staff)
     {
@@ -775,6 +1141,15 @@ class StaffController extends Controller
                 ['staff_id' => $staff->id, 'month' => $data['month'], 'year' => $data['year']],
                 ['basic_salary' => $staff->basic_salary ?? 0]
             );
+
+            // Calculate pending (undeducted) advances for this staff and set advance_deduction
+            $pendingAdvance = \App\Models\StaffAdvance::where('staff_id', $staff->id)
+                ->where('is_deducted', false)
+                ->sum('amount');
+
+            // update salary with advance_deduction so StaffService::markSalaryPaid can deduct them
+            $salary->advance_deduction = $pendingAdvance;
+            $salary->save();
 
             // Use service to mark salary paid and also deduct advances correctly
             $paidSalary = $this->service->markSalaryPaid($salary, $data);
