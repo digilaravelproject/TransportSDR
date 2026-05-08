@@ -464,6 +464,15 @@ class VehicleController extends Controller
                 $fileName = 'rc-' . time() . '.' . $file->extension();
                 $path = $file->storeAs($directory, $fileName, 'public');
                 $vehicle->update(['rc_file' => $path]);
+                // store as vehicle document
+                VehicleDocument::create([
+                    'tenant_id'     => $vehicle->tenant_id,
+                    'vehicle_id'    => $vehicle->id,
+                    'document_type' => 'rc',
+                    'document_number' => $request->input('rc_number'),
+                    'document_path' => $path,
+                    'expiry_date'   => $request->input('rc_expiry'),
+                ]);
             }
 
             // 2. Upload Insurance Certificate
@@ -472,6 +481,14 @@ class VehicleController extends Controller
                 $fileName = 'insurance-' . time() . '.' . $file->extension();
                 $path = $file->storeAs($directory, $fileName, 'public');
                 $vehicle->update(['insurance_file' => $path]);
+                VehicleDocument::create([
+                    'tenant_id'     => $vehicle->tenant_id,
+                    'vehicle_id'    => $vehicle->id,
+                    'document_type' => 'insurance',
+                    'document_number' => $request->input('insurance_number'),
+                    'document_path' => $path,
+                    'expiry_date'   => $request->input('insurance_expiry'),
+                ]);
             }
 
             // 3. Upload Permit Certificate
@@ -480,6 +497,14 @@ class VehicleController extends Controller
                 $fileName = 'permit-' . time() . '.' . $file->extension();
                 $path = $file->storeAs($directory, $fileName, 'public');
                 $vehicle->update(['permit_file' => $path]);
+                VehicleDocument::create([
+                    'tenant_id'     => $vehicle->tenant_id,
+                    'vehicle_id'    => $vehicle->id,
+                    'document_type' => 'permit',
+                    'document_number' => $request->input('permit_number'),
+                    'document_path' => $path,
+                    'expiry_date'   => $request->input('permit_expiry'),
+                ]);
             }
 
             return response()->json([
@@ -552,6 +577,14 @@ class VehicleController extends Controller
                 $fileName = 'rc-' . time() . '.' . $file->extension();
                 $path = $file->storeAs($directory, $fileName, 'public');
                 $vehicle->update(['rc_file' => $path]);
+                VehicleDocument::create([
+                    'tenant_id'     => $vehicle->tenant_id,
+                    'vehicle_id'    => $vehicle->id,
+                    'document_type' => 'rc',
+                    'document_number' => $request->input('rc_number'),
+                    'document_path' => $path,
+                    'expiry_date'   => $request->input('rc_expiry'),
+                ]);
             }
 
             // 2. Upload Insurance Certificate
@@ -560,6 +593,14 @@ class VehicleController extends Controller
                 $fileName = 'insurance-' . time() . '.' . $file->extension();
                 $path = $file->storeAs($directory, $fileName, 'public');
                 $vehicle->update(['insurance_file' => $path]);
+                VehicleDocument::create([
+                    'tenant_id'     => $vehicle->tenant_id,
+                    'vehicle_id'    => $vehicle->id,
+                    'document_type' => 'insurance',
+                    'document_number' => $request->input('insurance_number'),
+                    'document_path' => $path,
+                    'expiry_date'   => $request->input('insurance_expiry'),
+                ]);
             }
 
             // 3. Upload Permit Certificate
@@ -568,6 +609,14 @@ class VehicleController extends Controller
                 $fileName = 'permit-' . time() . '.' . $file->extension();
                 $path = $file->storeAs($directory, $fileName, 'public');
                 $vehicle->update(['permit_file' => $path]);
+                VehicleDocument::create([
+                    'tenant_id'     => $vehicle->tenant_id,
+                    'vehicle_id'    => $vehicle->id,
+                    'document_type' => 'permit',
+                    'document_number' => $request->input('permit_number'),
+                    'document_path' => $path,
+                    'expiry_date'   => $request->input('permit_expiry'),
+                ]);
             }
 
             return response()->json([

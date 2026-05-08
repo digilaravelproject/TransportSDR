@@ -602,12 +602,6 @@ class VehicleActivityController extends Controller
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Activities using Model
-        |--------------------------------------------------------------------------
-        */
-
         $activities = VehicleActivity::where('vehicle_id', $vehicle->id)
             ->select([
                 'id',
@@ -640,12 +634,6 @@ class VehicleActivityController extends Controller
                     'kind' => 'activity',
                 ];
             });
-
-        /*
-        |--------------------------------------------------------------------------
-        | Documents from vehicles table
-        |--------------------------------------------------------------------------
-        */
 
         $docs = collect();
 
@@ -682,16 +670,20 @@ class VehicleActivityController extends Controller
             }
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Combine + Sort
-        |--------------------------------------------------------------------------
-        */
+        // $combined = $activities
+        //     ->concat($docs)
+        //     ->sortByDesc(function ($i) {
+        //         return $i['activity_date'] ?? $i['created_at'];
+        //     })
+        //     ->values();
 
         $combined = $activities
             ->concat($docs)
             ->sortByDesc(function ($i) {
-                return $i['activity_date'] ?? $i['created_at'];
+                return [
+                    $i['activity_date'] ?? $i['created_at'],
+                    $i['id']
+                ];
             })
             ->values();
 
