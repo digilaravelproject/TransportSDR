@@ -20,11 +20,13 @@ class AttendanceController extends Controller
 
             $date = $request->query('date', Carbon::today()->toDateString());
 
-            // $staffs = Staff::where('is_active', true)->get(['id', 'name', 'phone', 'staff_type']);
+            // Fetch staff list and resolve staff_type to role name when possible
             $staffs = DB::table('staff')
-                ->where('is_active', true)
-                ->where('tenant_id', $tenantId)
-                ->get(['id', 'name', 'phone', 'staff_type']);
+                ->leftJoin('role_modules', 'staff.staff_type', '=', 'role_modules.id')
+                ->where('staff.is_active', true)
+                ->where('staff.tenant_id', $tenantId)
+                ->select('staff.id', 'staff.name', 'staff.phone', DB::raw("COALESCE(role_modules.name, staff.staff_type) as staff_type"))
+                ->get();
 
             $data = $staffs->map(function ($s) use ($date) {
                 $att = StaffAttendance::where('staff_id', $s->id)->where('date', $date)->first();

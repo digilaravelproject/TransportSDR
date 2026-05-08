@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Route as BusRoute;
 use App\Models\Vehicle;
 use Exception;
+use Illuminate\Support\Facades\DB;
 
 class RouteController extends Controller
 {
@@ -132,6 +133,16 @@ class RouteController extends Controller
     {
         try {
             $route = BusRoute::with(['vehicles', 'drivers'])->findOrFail($id);
+
+            // Replace numeric vehicle.type ids with vehicle type name when available
+            foreach ($route->vehicles as $veh) {
+                if (is_numeric($veh->type)) {
+                    $typeName = DB::table('vehicle_types')->where('id', $veh->type)->value('name');
+                    if ($typeName) {
+                        $veh->type = $typeName;
+                    }
+                }
+            }
 
             return response()->json([
                 'success' => true,
