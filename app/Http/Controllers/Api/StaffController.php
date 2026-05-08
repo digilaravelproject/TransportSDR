@@ -1054,24 +1054,52 @@ class StaffController extends Controller
                 if (!$salaryExists) {
 
                     $paymentsNormalized = collect();
+                    $advanceSum = 0;
 
                     foreach ($advances as $a) {
-
                         $paymentsNormalized->push([
                             'type'         => 'advance',
                             'id'           => $a->id,
                             'amount'       => (float) $a->amount,
-                            'date'         => $a->advance_date?->toDateString()
-                                                ?? $a->created_at?->toDateString(),
+                            'date'         => $a->advance_date?->toDateString() ?? $a->created_at?->toDateString(),
                             'payment_mode' => $a->payment_mode,
                             'notes'        => $a->reason ?? null,
                         ]);
+                        $advanceSum += (float) $a->amount;
                     }
 
-                    $advanceOnlyRecords->push([
-                        'payments' => $paymentsNormalized
-                            ->sortBy('date')
-                            ->values()
+                    // Build a salary-like record for months that only have advances
+                    $advanceOnlyRecords->push((object)[
+                        'id' => null,
+                        'tenant_id' => $staff->tenant_id,
+                        'staff_id'  => $staff->id,
+                        'month'     => (int)$groupMonth,
+                        'year'      => (int)$groupYear,
+                        'basic_salary' => (float)$staff->basic_salary,
+                        'hra' => 0.00,
+                        'da_total' => 0.00,
+                        'bonus' => 0.00,
+                        'other_allowance' => 0.00,
+                        'gross_salary' => (float)$staff->basic_salary,
+                        'advance_deduction' => round($advanceSum, 2),
+                        'absent_deduction' => 0.00,
+                        'other_deduction' => 0.00,
+                        'total_deduction' => round($advanceSum, 2),
+                        'net_salary' => round((float)$staff->basic_salary - $advanceSum, 2),
+                        'total_days' => 0,
+                        'present_days' => 0,
+                        'absent_days' => 0,
+                        'half_days' => 0,
+                        'trip_days' => 0,
+                        'payment_status' => 'advance_only',
+                        'payment_mode' => null,
+                        'paid_on' => null,
+                        'transaction_ref' => null,
+                        'notes' => null,
+                        'created_by' => null,
+                        'created_at' => null,
+                        'updated_at' => null,
+                        'payments' => $paymentsNormalized->sortBy('date')->values(),
                     ]);
                 }
             }
@@ -1081,8 +1109,23 @@ class StaffController extends Controller
             | Merge Salary Records + Advance Only Records
             |--------------------------------------------------------------------------
             */
+            // $finalCollection = $salaryCollection
+            //     ->concat($advanceOnlyRecords)
+            //     ->values();
+
             $finalCollection = $salaryCollection
                 ->concat($advanceOnlyRecords)
+                ->sortByDesc(function ($item) {
+
+                    // Get latest payment date
+                    if (isset($item->payments) && count($item->payments) > 0) {
+
+                        return collect($item->payments)
+                            ->max('date');
+                    }
+
+                    return $item->paid_on ?? $item->created_at ?? now();
+                })
                 ->values();
 
             /*

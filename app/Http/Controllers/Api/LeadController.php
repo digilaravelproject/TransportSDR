@@ -18,6 +18,8 @@ class LeadController extends Controller
     // GET /api/v1/leads
     public function index(Request $request)
     {
+        $tenant_id = auth()->user()->tenant_id ?? null;
+        
         $query = Lead::query();
 
         if ($request->filled('status')) {
@@ -40,6 +42,9 @@ class LeadController extends Controller
                     ->orWhere('lead_number', 'like', "%{$s}%");
             });
         }
+        
+        $query->where('tenant_id', $tenant_id);
+
 
         $perPage = (int) ($request->per_page ?? 20);
         $leads = $query->with(['notes.author', 'vehicleTypeDetails', 'followups.author', 'expenses.creator', 'dutySheets.uploader'])->orderBy('created_at', 'desc')->paginate($perPage)->withQueryString();
