@@ -145,6 +145,8 @@ Route::middleware(['auth:sanctum', 'tenant'])
 
                 Route::post('activity/repair',  [Api\VehicleActivityController::class, 'storeRepair']);
                 Route::get('activity/repair',   [Api\VehicleActivityController::class, 'repairHistory']);
+                Route::get('activity/repair/{repair}', [Api\VehicleActivityController::class, 'showRepair']);
+                Route::post('activity/repair/{repair}/payment', [Api\VehicleActivityController::class, 'payRepair']);
 
                 // Documents and timeline
                 Route::get('documents',         [Api\VehicleActivityController::class, 'documents']);

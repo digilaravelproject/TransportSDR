@@ -17,6 +17,7 @@ class Staff extends Model
         'phone',
         'email',
         'staff_type',
+        'salary_type',
         'work_shift',         // driver, helper, office
         'date_of_birth',
         'date_of_joining',

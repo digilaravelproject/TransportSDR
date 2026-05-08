@@ -268,6 +268,21 @@ class VehicleActivityController extends Controller
         return response()->json(['success' => true, 'data' => $activity]);
     }
 
+    // GET /api/v1/vehicles/{vehicle}/activity/repair/{repair}
+    public function showRepair(Request $request, Vehicle $vehicle, $repairId)
+    {
+        $this->checkRole(['superadmin', 'admin', 'operator', 'accountant', 'driver']);
+
+        $activity = VehicleActivity::where('vehicle_id', $vehicle->id)
+            ->where('id', $repairId)
+            ->where('activity_type', 'repair')
+            ->firstOrFail();
+
+        $activity->receipt_url = $activity->receipt_path ? asset("storage/{$activity->receipt_path}") : null;
+
+        return response()->json(['success' => true, 'data' => $activity]);
+    }
+
     // POST /api/v1/vehicles/{vehicle}/activity/service/{service}/payment
     public function payService(Request $request, Vehicle $vehicle, $serviceId)
     {
@@ -284,6 +299,55 @@ class VehicleActivityController extends Controller
         $activity = VehicleActivity::where('vehicle_id', $vehicle->id)
             ->where('id', $serviceId)
             ->where('activity_type', 'service')
+            ->firstOrFail();
+
+        $data = $v->validated();
+        $amount = (float) $data['amount'];
+
+        // store receipt (if any) into meta.payments
+        $receiptPath = null;
+        if ($request->hasFile('receipt')) {
+            $tenantId = Auth::user()->tenant_id ?? null;
+            $dir = "tenants/{$tenantId}/vehicles/{$vehicle->id}/activities/payments";
+            $receiptPath = $request->file('receipt')->store($dir, 'public');
+        }
+
+        $meta = $activity->meta ?? [];
+        $payments = $meta['payments'] ?? [];
+        $payments[] = [
+            'amount' => $amount,
+            'paid_at' => $data['payment_date'] ?? now()->toDateTimeString(),
+            'paid_by' => Auth::id(),
+            'notes' => $data['notes'] ?? null,
+            'receipt_path' => $receiptPath,
+        ];
+        $meta['payments'] = $payments;
+
+        $activity->meta = $meta;
+        $activity->amount_paid = (float) ($activity->amount_paid ?? 0) + $amount;
+        $activity->save();
+
+        $due = (float) $activity->amount - (float) $activity->amount_paid;
+
+        return response()->json(['success' => true, 'message' => 'Payment recorded', 'data' => ['amount_paid' => $activity->amount_paid, 'due' => max(0, $due)]]);
+    }
+
+    // POST /api/v1/vehicles/{vehicle}/activity/repair/{repair}/payment
+    public function payRepair(Request $request, Vehicle $vehicle, $repairId)
+    {
+        $this->checkRole(['superadmin', 'admin', 'operator', 'accountant', 'driver']);
+
+        $v = Validator::make($request->all(), [
+            'amount' => 'required|numeric|min:0.01',
+            'payment_date' => 'nullable|date',
+            'receipt' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'notes' => 'nullable|string',
+        ]);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $activity = VehicleActivity::where('vehicle_id', $vehicle->id)
+            ->where('id', $repairId)
+            ->where('activity_type', 'repair')
             ->firstOrFail();
 
         $data = $v->validated();

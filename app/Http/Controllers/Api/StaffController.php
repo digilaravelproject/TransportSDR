@@ -93,9 +93,26 @@ class StaffController extends Controller
             'staff_type'             => 'required|exists:role_modules,id',
             'salary_type'            => 'nullable|in:monthly,daily',
             'work_shift'             => 'nullable|exists:shifts,id', // CHANGE KIYA HAI: Shift ki ID lega
+            'assigned_vehicle'       => 'nullable|string|max:100',
             'basic_salary'           => 'nullable|numeric|min:0',
+            'da_per_day'             => 'nullable|numeric|min:0',
+            'hra'                    => 'nullable|numeric|min:0',
+            'other_allowance'        => 'nullable|numeric|min:0',
             'address'                => 'nullable|string',
             'date_of_joining'        => 'nullable|date',
+            'date_of_birth'          => 'nullable|date',
+            'emergency_contact'      => 'nullable|string|max:15',
+            'emergency_contact_name' => 'nullable|string|max:255',
+
+            // License fields
+            'license_number'         => 'nullable|string|max:100',
+            'license_expiry'         => 'nullable|date',
+            'license_type'           => 'nullable|string|max:50',
+
+            // Bank details
+            'bank_name'              => 'nullable|string|max:255',
+            'bank_account'           => 'nullable|string|max:100',
+            'bank_ifsc'              => 'nullable|string|max:30',
 
             // Document Fields
             'aadhar_number'          => 'nullable|string|max:50',
@@ -117,7 +134,11 @@ class StaffController extends Controller
         ]);
 
         try {
+            // Ensure tenant_id is set
+            $data['tenant_id'] = auth()->user()->tenant_id ?? null;
+
             // Naya service method call kiya hai jo staff aur files dono save karega
+
             $staff = $this->service->storeWithDocuments($data, $request);
 
             return response()->json([
@@ -183,10 +204,26 @@ class StaffController extends Controller
             'work_shift'             => 'nullable|exists:shifts,id', // CHANGE KIYA HAI: Shift ki ID lega
             'assigned_vehicle'       => 'nullable|string|max:100',
             'basic_salary'           => 'nullable|numeric|min:0',
+            'da_per_day'             => 'nullable|numeric|min:0',
+            'hra'                    => 'nullable|numeric|min:0',
+            'other_allowance'        => 'nullable|numeric|min:0',
             'address'                => 'nullable|string',
             'date_of_joining'        => 'nullable|date',
+            'date_of_birth'          => 'nullable|date',
+            'emergency_contact'      => 'nullable|string|max:15',
+            'emergency_contact_name' => 'nullable|string|max:255',
             'is_available'           => 'boolean',
             'is_active'              => 'boolean',
+
+            // License fields
+            'license_number'         => 'nullable|string|max:100',
+            'license_expiry'         => 'nullable|date',
+            'license_type'           => 'nullable|string|max:50',
+
+            // Bank details
+            'bank_name'              => 'nullable|string|max:255',
+            'bank_account'           => 'nullable|string|max:100',
+            'bank_ifsc'              => 'nullable|string|max:30',
 
             // Document Fields
             'aadhar_number'          => 'nullable|string|max:50',
