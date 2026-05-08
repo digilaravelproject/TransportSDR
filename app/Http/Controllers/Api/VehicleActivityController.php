@@ -162,6 +162,18 @@ class VehicleActivityController extends Controller
             $data['receipt_path'] = $path;
         }
 
+        // If an initial paid amount is provided while creating the service, record it into meta.payments
+        if (!empty($data['amount_paid']) && (float)$data['amount_paid'] > 0) {
+            $payment = [
+                'amount' => (float) $data['amount_paid'],
+                'paid_at' => now()->toDateTimeString(),
+                'paid_by' => Auth::id(),
+                'notes' => $data['notes'] ?? null,
+                'receipt_path' => $data['receipt_path'] ?? null,
+            ];
+            $data['meta'] = array_merge($data['meta'] ?? [], ['payments' => [$payment]]);
+        }
+
         $service = VehicleActivity::create($data);
 
         $id = $service->id;
@@ -408,6 +420,18 @@ class VehicleActivityController extends Controller
             $dir = "tenants/{$data['tenant_id']}/vehicles/{$vehicle->id}/activities";
             $path = $request->file('receipt')->store($dir, 'public');
             $data['receipt_path'] = $path;
+        }
+
+        // If an initial paid amount is provided while creating the repair, record it into meta.payments
+        if (!empty($data['amount_paid']) && (float)$data['amount_paid'] > 0) {
+            $payment = [
+                'amount' => (float) $data['amount_paid'],
+                'paid_at' => now()->toDateTimeString(),
+                'paid_by' => Auth::id(),
+                'notes' => $data['notes'] ?? null,
+                'receipt_path' => $data['receipt_path'] ?? null,
+            ];
+            $data['meta'] = array_merge($data['meta'] ?? [], ['payments' => [$payment]]);
         }
 
         $repair = VehicleActivity::create($data);
