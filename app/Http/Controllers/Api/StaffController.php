@@ -699,17 +699,57 @@ class StaffController extends Controller
         $this->checkRole(['superadmin', 'admin', 'accountant']);
 
         try {
+            // Determine target month/year (defaults to current)
+            $month = $request->month ?? now()->month;
+            $year = $request->year ?? now()->year;
+
+            // Salaries for requested filters
             $query = StaffSalary::where('staff_id', $staff->id)
+                ->when($request->payment_status, fn($q, $v) => $q->where('payment_status', $v))
                 ->when($request->year, fn($q, $v) => $q->where('year', $v))
-                ->when($request->month, fn($q, $v) => $q->where('month', $v))
-                ->when($request->payment_status, fn($q, $v) => $q->where('payment_status', $v));
+                ->when($request->month, fn($q, $v) => $q->where('month', $v));
 
             $salaries = (clone $query)->orderBy('year', 'desc')->orderBy('month', 'desc')->paginate($request->integer('per_page', 12));
 
-            $totalPaid = (clone $query)->where('payment_status', 'paid')->sum('net_salary');
-            $totalPending = (clone $query)->where('payment_status', 'pending')->sum('net_salary');
+            // Total salary paid for this month (salary payments)
+            $totalSalaryPaid = StaffSalary::where('staff_id', $staff->id)
+                ->where('year', $year)
+                ->where('month', $month)
+                ->where('payment_status', 'paid')
+                ->sum('net_salary');
 
-            return response()->json(['success' => true, 'message' => 'Salary records retrieved successfully.', 'data' => ['summary' => ['monthly_salary' => $staff->basic_salary, 'total_paid' => $totalPaid, 'total_pending' => $totalPending], 'financial_history' => $salaries]]);
+            // Total advance payments for this month
+            $totalAdvancePaid = \App\Models\StaffAdvance::where('staff_id', $staff->id)
+                ->whereYear('advance_date', $year)
+                ->whereMonth('advance_date', $month)
+                ->sum('amount');
+
+            $totalPaid = (float)$totalSalaryPaid + (float)$totalAdvancePaid;
+
+            // monthly salary (base)
+            $monthlySalary = (float) $staff->basic_salary;
+
+            $totalPending = max(0, $monthlySalary - $totalPaid);
+
+            // Build payments list combining advances and salary payments for data view
+            $advancesList = \App\Models\StaffAdvance::where('staff_id', $staff->id)
+                ->whereYear('advance_date', $year)
+                ->whereMonth('advance_date', $month)
+                ->orderBy('advance_date', 'desc')
+                ->get();
+
+            $salaryPayments = StaffSalary::where('staff_id', $staff->id)
+                ->where('year', $year)
+                ->where('month', $month)
+                ->where('payment_status', 'paid')
+                ->orderBy('paid_on', 'desc')
+                ->get();
+
+            $paymentsCombined = collect()->concat($advancesList)->concat($salaryPayments)->sortByDesc(function($p){
+                return $p->paid_on ?? $p->advance_date ?? $p->created_at ?? now();
+            })->values();
+
+            return response()->json(['success' => true, 'message' => 'Salary records retrieved successfully.', 'data' => ['summary' => ['monthly_salary' => $monthlySalary, 'total_paid' => round($totalPaid,2), 'total_pending' => round($totalPending,2)], 'financial_history' => $salaries, 'payments' => $paymentsCombined]]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'An unexpected error occurred while fetching salary history.', 'error' => $e->getMessage()], 500);
         }
@@ -733,10 +773,13 @@ class StaffController extends Controller
         try {
             $salary = StaffSalary::updateOrCreate(
                 ['staff_id' => $staff->id, 'month' => $data['month'], 'year' => $data['year']],
-                ['basic_salary' => $staff->basic_salary ?? 0, 'paid_on' => $data['paid_on'], 'payment_mode' => $data['payment_mode'], 'payment_status' => 'paid', 'transaction_ref' => $data['transaction_ref'] ?? null, 'notes' => $data['notes'] ?? null, 'net_salary' => $data['amount']]
+                ['basic_salary' => $staff->basic_salary ?? 0]
             );
 
-            return response()->json(['success' => true, 'message' => 'Salary paid successfully.', 'data' => $salary]);
+            // Use service to mark salary paid and also deduct advances correctly
+            $paidSalary = $this->service->markSalaryPaid($salary, $data);
+
+            return response()->json(['success' => true, 'message' => 'Salary paid successfully.', 'data' => $paidSalary]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Failed to record salary payment.', 'error' => $e->getMessage()], 500);
         }
