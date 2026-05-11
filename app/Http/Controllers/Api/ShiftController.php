@@ -39,10 +39,11 @@ class ShiftController extends Controller {
 
             // Get drivers not in assigned list
             $drivers = \App\Models\Staff::withoutGlobalScopes()
-                ->withTrashed()
+                // ->withTrashed()
                 ->whereNotNull('tenant_id')
+                ->whereNull('deleted_at')
                 ->where('is_active', true)
-                ->where('staff_type', 1)
+                ->where('staff_type', 4)
                 ->whereNotIn('id', $assignedDriverIds)
                 ->get();
 

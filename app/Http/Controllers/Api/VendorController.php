@@ -148,6 +148,7 @@ class VendorController extends Controller
         // Match either to reliably find drivers across deployments.
         $q = Staff::withoutGlobalScopes()->available()
             ->where('tenant_id', $vendor->tenant_id)
+            ->whereNull('deleted_at')
             ->where(function($qq) {
                 $qq->where('staff_type', '4');
             });
