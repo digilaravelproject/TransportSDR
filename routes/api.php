@@ -212,6 +212,8 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::get('charts',        [Api\DashboardController::class, 'charts']);
             Route::get('pl-report',     [Api\DashboardController::class, 'plReport']);
             Route::get('finance',       [Api\DashboardController::class, 'financeOverview']);
+            Route::get('reports/stats', [Api\ReportController::class, 'stats']);
+            Route::post('reports/generate', [Api\ReportController::class, 'generate']);
             Route::get('performance',   [Api\DashboardController::class, 'performance']);
             Route::get('notifications', [Api\DashboardController::class, 'notifications']);
             Route::post('clear-cache',  [Api\DashboardController::class, 'clearCache']);

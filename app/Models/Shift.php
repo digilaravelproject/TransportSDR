@@ -88,6 +88,6 @@ class Shift extends Model
     public function drivers()
     {
         return $this->belongsToMany(\App\Models\Staff::class, 'shift_driver', 'shift_id', 'driver_id')
-            ->where('staff_type', 'driver');
+            ->where('staff_type', 4);
     }
 }
