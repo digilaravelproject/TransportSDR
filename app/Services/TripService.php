@@ -12,12 +12,19 @@ class TripService
     public function store(array $data): Trip
     {
         return DB::transaction(function () use ($data) {
+            // Do not persist vehicle_id from the public create API. If caller
+            // included vehicle_id, respect it for locking only but do not store it.
+            $vehicleId = $data['vehicle_id'] ?? null;
+            if (array_key_exists('vehicle_id', $data)) {
+                unset($data['vehicle_id']);
+            }
+
             $trip = Trip::create($data);
-            $this->lockResources(
-                $data['vehicle_id'],
-                $data['driver_id'] ?? null,
-                $data['helper_id'] ?? null
-            );
+
+            // Lock resources only if a vehicle was explicitly provided in request
+            if ($vehicleId) {
+                $this->lockResources($vehicleId, $data['driver_id'] ?? null, $data['helper_id'] ?? null);
+            }
             return $trip->load(['vehicle', 'customer', 'driver', 'helper']);
         });
     }

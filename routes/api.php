@@ -206,6 +206,9 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::post('/{vendor}/bills', [Api\VendorController::class, 'addBill']);
         });
 
+        // Lead -> Trip conversion
+        Route::post('leads/{lead}/convert-to-trip', [Api\LeadController::class, 'convertToTrip']);
+
         // MODULE 6 — Dashboard
         Route::prefix('dashboard')->group(function () {
             Route::get('summary',       [Api\DashboardController::class, 'summary']);

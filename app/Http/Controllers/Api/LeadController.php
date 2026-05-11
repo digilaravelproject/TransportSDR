@@ -410,6 +410,75 @@ class LeadController extends Controller
         return response()->json(['success' => true, 'message' => 'Driver assigned.', 'data' => $lead->load('driver')]);
     }
 
+    // POST /api/v1/leads/{lead}/convert-to-trip
+    public function convertToTrip(Request $request, Lead $lead)
+    {
+        // $this->checkRole(['superadmin', 'admin', 'operator']);
+
+        // allow optional overrides when converting
+        $data = $request->validate([
+            'vehicle_id' => 'nullable|exists:vehicles,id',
+            'driver_id' => 'nullable|exists:staff,id',
+            'helper_id' => 'nullable|exists:staff,id',
+            'total_amount' => 'nullable|numeric|min:0',
+            'advance_amount' => 'nullable|numeric|min:0',
+            'discount' => 'nullable|numeric|min:0',
+            'is_gst' => 'nullable|boolean',
+            'gst_percent' => 'nullable|numeric|min:0|max:28',
+        ]);
+
+        try {
+            $tripService = app(\App\Services\TripService::class);
+
+            // prepare trip data from lead
+            $tripData = [
+                'tenant_id' => $lead->tenant_id,
+                'trip_date' => $lead->trip_date?->toDateString() ?? now()->toDateString(),
+                'return_date' => $lead->return_date?->toDateString() ?? null,
+                'duration_days' => $lead->duration_days ?? 1,
+                'trip_route' => $lead->trip_route,
+                'pickup_address' => $lead->pickup_address,
+                'destination_points' => $lead->points ? array_map(fn($p) => $p['name'] ?? $p, $lead->points) : [],
+                'vehicle_id' => $data['vehicle_id'] ?? $lead->vehicle_id ?? null,
+                'vehicle_type' => $lead->vehicleTypeDetails?->name ?? (string)($lead->vehicle_type ?? ''),
+                'seating_capacity' => $lead->seating_capacity ?? 1,
+                'number_of_vehicles' => $lead->number_of_vehicles ?? 1,
+                'customer_id' => $lead->customer_id ?? null,
+                'customer_name' => $lead->customer_name,
+                'customer_contact' => $lead->customer_contact,
+                'driver_id' => $data['driver_id'] ?? $lead->driver_id ?? null,
+                'helper_id' => $data['helper_id'] ?? null,
+                'total_amount' => $data['total_amount'] ?? $lead->total_amount ?? 0,
+                'advance_amount' => $data['advance_amount'] ?? $lead->advance_amount ?? 0,
+                'discount' => $data['discount'] ?? $lead->discount ?? 0,
+                'is_gst' => $data['is_gst'] ?? $lead->is_gst ?? false,
+                'gst_percent' => $data['gst_percent'] ?? $lead->gst_percent ?? 0,
+                'notes' => "Converted from lead: {$lead->lead_number}",
+                'lead_id' => $lead->id,
+            ];
+
+            // create trip
+            $trip = $tripService->store($tripData);
+
+            // mark lead converted and save link
+            $lead->status = 'converted';
+            $lead->save();
+
+            // attach lead_id on trip if model has column
+            if (\Schema::hasColumn('trips', 'lead_id')) {
+                $trip->update(['lead_id' => $lead->id]);
+            }
+
+            try {
+                $this->notificationService->create('Lead Converted', "Lead {$lead->lead_number} converted to trip {$trip->trip_number}", ['lead_id' => $lead->id, 'trip_id' => $trip->id], 'lead', 'high');
+            } catch (\Throwable $e) {}
+
+            return response()->json(['success' => true, 'message' => 'Lead converted to trip', 'data' => $trip], 201);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to convert lead to trip', 'error' => $e->getMessage()], 500);
+        }
+    }
+
     // GET /api/v1/leads/{lead}/expenses
     public function expenses(Lead $lead)
     {

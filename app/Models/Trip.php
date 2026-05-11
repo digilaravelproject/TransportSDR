@@ -12,6 +12,7 @@ class Trip extends Model
 
     protected $fillable = [
         'tenant_id',
+        'lead_id',
         'trip_number',
         'trip_date',
         'return_date',
@@ -53,6 +54,7 @@ class Trip extends Model
         'return_date'        => 'date',
         'destination_points' => 'array',
         'is_gst'             => 'boolean',
+        'vehicle_type'       => 'integer',
     ];
 
     public function tenant()
@@ -62,6 +64,11 @@ class Trip extends Model
     public function vehicle()
     {
         return $this->belongsTo(Vehicle::class);
+    }
+
+    public function vehicleTypeDetails()
+    {
+        return $this->belongsTo(\App\Models\VehicleType::class, 'vehicle_type');
     }
     public function customer()
     {
@@ -78,6 +85,11 @@ class Trip extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function lead()
+    {
+        return $this->belongsTo(\App\Models\Lead::class, 'lead_id');
     }
     public function payments()
     {

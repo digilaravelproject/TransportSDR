@@ -23,6 +23,7 @@ class TripResource extends JsonResource
                 'id'                 => $this->vehicle?->id,
                 'registration'       => $this->vehicle?->registration_number,
                 'type'               => $this->vehicle_type,
+                'type_name'          => $this->vehicleTypeDetails?->name,
                 'seating_capacity'   => $this->seating_capacity,
                 'number_of_vehicles' => $this->number_of_vehicles,
             ],
