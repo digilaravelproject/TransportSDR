@@ -40,9 +40,9 @@ class ShiftController extends Controller {
             // Get drivers not in assigned list
             $drivers = \App\Models\Staff::withoutGlobalScopes()
                 ->withTrashed()
-                ->whereNotNull('user_id')
+                ->whereNotNull('tenant_id')
                 ->where('is_active', true)
-                ->where('staff_type', 'driver')
+                ->where('staff_type', 1)
                 ->whereNotIn('id', $assignedDriverIds)
                 ->get();
 
@@ -255,18 +255,27 @@ class ShiftController extends Controller {
     public function show($id)
     {
         try {
-    
-            $shift = Shift::with([
-                    'drivers' => function ($q) {
-                        $q->withoutGlobalScopes()->withTrashed();
-                    }
-                ])
-                ->findOrFail($id);
-    
-            // Manually calculate drivers count (safe and accurate)
-            $shift->drivers_count = \DB::table('shift_driver')
+
+            // Load shift
+            $shift = Shift::findOrFail($id);
+
+            // Get all driver IDs from pivot and load full Staff models (including trashed and ignoring global scopes)
+            $driverIds = \DB::table('shift_driver')
                 ->where('shift_id', $shift->id)
-                ->count();
+                ->pluck('driver_id')
+                ->toArray();
+
+            $drivers = [];
+            if (!empty($driverIds)) {
+                $drivers = \App\Models\Staff::withoutGlobalScopes()
+                    ->whereIn('id', $driverIds)
+                    // ->where('staff_type', 'driver')
+                    ->get();
+            }
+
+            // Attach the loaded drivers as a relation so ShiftResource can use them
+            $shift->setRelation('drivers', $drivers);
+            $shift->drivers_count = count($drivers);
     
             return response()->json([
                 'success' => true,

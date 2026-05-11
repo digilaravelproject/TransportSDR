@@ -55,4 +55,9 @@ class Vehicle extends Model
     {
         return $this->belongsTo(Tenant::class);
     }
+
+    public function vehicleTypeDetails()
+    {
+        return $this->belongsTo(VehicleType::class, 'type');
+    }
 }

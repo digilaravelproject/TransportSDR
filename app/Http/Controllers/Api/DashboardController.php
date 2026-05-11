@@ -136,6 +136,102 @@ class DashboardController extends Controller
         }
     }
 
+    // GET /api/v1/dashboard/finance?month=YYYY-MM or ?from=YYYY-MM-DD&to=YYYY-MM-DD
+    public function financeOverview(Request $request)
+    {
+        $this->checkRole(['superadmin', 'admin', 'accountant']);
+
+        $request->validate([
+            'month' => ['nullable','regex:/^\d{4}-\d{2}$/'],
+            'from'  => 'nullable|date',
+            'to'    => 'nullable|date|after_or_equal:from',
+            'limit' => 'nullable|integer|min:1|max:500',
+        ]);
+
+        try {
+            if ($request->month) {
+                $from = \Carbon\Carbon::createFromFormat('Y-m', $request->month)->startOfMonth()->toDateString();
+                $to   = \Carbon\Carbon::createFromFormat('Y-m', $request->month)->endOfMonth()->toDateString();
+            } else {
+                $from = $request->from ?? now()->startOfMonth()->toDateString();
+                $to   = $request->to   ?? now()->endOfMonth()->toDateString();
+            }
+
+            $tenantId = auth()->user()->tenant_id ?? null;
+
+            // Total revenue: sum of payments received for trips in period
+            $revenueQuery = \DB::table('trip_payments')
+                ->join('trips', 'trip_payments.trip_id', '=', 'trips.id')
+                ->whereBetween('trips.trip_date', [$from, $to])
+                ->where('trips.tenant_id', $tenantId)
+                ->selectRaw('COALESCE(SUM(trip_payments.amount),0) as total');
+
+            $totalRevenue = (float) $revenueQuery->value('total');
+
+            // Total expenses: payments labelled as expense (best-effort)
+            $expenseTypes = ['expense', 'vendor', 'cost', 'outgoing'];
+            $expenseQuery = \DB::table('trip_payments')
+                ->join('trips', 'trip_payments.trip_id', '=', 'trips.id')
+                ->whereBetween('trips.trip_date', [$from, $to])
+                ->where('trips.tenant_id', $tenantId)
+                ->whereIn('trip_payments.type', $expenseTypes)
+                ->selectRaw('COALESCE(SUM(trip_payments.amount),0) as total');
+
+            $totalExpenses = (float) $expenseQuery->value('total');
+
+            // Pending amount: sum of balance_amount for trips in period that are not fully paid
+            $pendingAmount = (float) \App\Models\Trip::whereBetween('trip_date', [$from, $to])
+                ->where('tenant_id', $tenantId)
+                ->whereIn('payment_status', ['pending', 'partial'])
+                ->sum('balance_amount');
+
+            // Completed trips details
+            $limit = $request->integer('limit', 50);
+            $completedTrips = \App\Models\Trip::with(['vehicle', 'driver', 'customer'])
+                ->whereBetween('trip_date', [$from, $to])
+                ->where('tenant_id', $tenantId)
+                ->where('status', 'completed')
+                ->orderBy('trip_date', 'desc')
+                ->limit($limit)
+                ->get()
+                ->map(function ($trip) {
+                    return [
+                        'id' => $trip->id,
+                        'trip_number' => $trip->trip_number,
+                        'trip_date' => $trip->trip_date?->toDateString(),
+                        'route' => $trip->trip_route,
+                        'customer' => $trip->customer_name,
+                        'vehicle' => $trip->vehicle?->registration_number,
+                        'driver' => $trip->driver?->name,
+                        'revenue' => (float) $trip->total_amount,
+                        'tax' => (float) $trip->tax_amount,
+                        'discount' => (float) $trip->discount,
+                        'paid' => (float) ($trip->advance_amount + $trip->part_payment),
+                        'balance' => (float) $trip->balance_amount,
+                        'payment_status' => $trip->payment_status,
+                    ];
+                })->values();
+
+            $totalProfit = $totalRevenue - $totalExpenses;
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'period' => ['from' => $from, 'to' => $to],
+                    'total_revenue' => round($totalRevenue, 2),
+                    'total_expenses' => round($totalExpenses, 2),
+                    'total_profit' => round($totalProfit, 2),
+                    'pending_amount' => round($pendingAmount, 2),
+                    'completed_trips' => $completedTrips,
+                    'completed_count' => $completedTrips->count(),
+                ],
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error computing finance overview', 'error' => $e->getMessage()], 500);
+        }
+    }
+
     // ─────────────────────────────────────────────────
     // POST /api/v1/dashboard/clear-cache
     // Admin manually clear dashboard cache

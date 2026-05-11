@@ -119,14 +119,23 @@ class VendorController extends Controller
             'vehicles',
             'vehicleTypeDetails'
         ]);
+
+        $vehicles = $vendor->vehicles->map(function ($vehicle) {
+
+            $vehicle->type = $vehicle->vehicleTypeDetails->name ?? null;
+
+            return $vehicle;
+        });
+
         $bills = VendorBill::where('vendor_id', $vendor->id)->orderBy('billing_date', 'desc')->get();
         return response()->json(['success' => true, 'data' => [
             'vendor' => $vendor,
-            'assigned_vehicles' => $vendor->vehicles,
+            'assigned_vehicles' => $vehicles,
             'assigned_drivers' => $vendor->drivers()->get(),
             'billing_history' => $bills
         ]]);
     }
+    
 
     // GET /api/v1/vendors/{vendor}/available-drivers
     public function availableDrivers(Request $request, Vendor $vendor)
@@ -162,7 +171,7 @@ class VendorController extends Controller
         if ($request->boolean('debug')) {
             $tenantDriversCount = Staff::withoutGlobalScopes()->where('tenant_id', $vendor->tenant_id)
                 ->where(function($qq) {
-                    $qq->where('staff_type', 'driver')->orWhere('work_shift', 'driver');
+                    $qq->where('staff_type', 4)->orWhere('work_shift', 'driver');
                 })->count();
             $assignedIds = \DB::table('vendor_staff')->where('vendor_id', $vendor->id)->pluck('staff_id')->toArray();
             $availableCount = $p->total();

@@ -19,6 +19,8 @@ class InventoryNewController extends Controller
 
         $q = Inventory::query();
 
+        $tenantId = auth()->user()->tenant_id;
+
         if ($request->type) {
             $q->where('category', $request->type);
         }
@@ -30,6 +32,8 @@ class InventoryNewController extends Controller
                    ->orWhere('item_code', 'like', "%{$s}%");
             });
         }
+
+        $q->where('tenant_id', $tenantId);
 
         $items = $q->latest()->paginate($request->per_page ?? 20);
 
@@ -141,6 +145,35 @@ class InventoryNewController extends Controller
         $this->createStockRecord($inventory, 'stock_out', $data['quantity'], $data['unit_price'] ?? 0, null, $data['reason'] ?? null, $data);
 
         return response()->json(['success'=>true,'message'=>'Stock removed.','data'=>$inventory->fresh()]);
+    }
+
+    /**
+     * DELETE /api/v1/inventories/{inventory}
+     * If inventory has stock records, caller must pass `force=1` to also remove stock records.
+     */
+    public function destroy(Request $request, Inventory $inventory)
+    {
+        try {
+            // If there are stock records and force not provided, prevent deletion
+            $hasStocks = $inventory->stocks()->exists();
+            $force = $request->boolean('force');
+
+            if ($hasStocks && !$force) {
+                return response()->json(['success' => false, 'message' => 'Inventory has stock records. Pass force=1 to delete along with stock records.'], 409);
+            }
+
+            if ($force && $hasStocks) {
+                // delete related stock records first
+                $inventory->stocks()->delete();
+            }
+
+            // soft-delete the inventory
+            $inventory->delete();
+
+            return response()->json(['success' => true, 'message' => 'Inventory deleted successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error deleting inventory', 'error' => $e->getMessage()], 500);
+        }
     }
 
     protected function createStockRecord(Inventory $inventory, string $type, $quantity, $unitPrice = 0, $vendor = null, $reason = null, $extra = [])

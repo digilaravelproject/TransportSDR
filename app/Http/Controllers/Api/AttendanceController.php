@@ -25,6 +25,7 @@ class AttendanceController extends Controller
                 ->leftJoin('role_modules', 'staff.staff_type', '=', 'role_modules.id')
                 ->where('staff.is_active', true)
                 ->where('staff.tenant_id', $tenantId)
+                ->whereNull('staff.deleted_at')
                 ->select('staff.id', 'staff.name', 'staff.phone', DB::raw("COALESCE(role_modules.name, staff.staff_type) as staff_type"))
                 ->get();
 

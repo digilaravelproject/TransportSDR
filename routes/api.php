@@ -211,6 +211,7 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::get('summary',       [Api\DashboardController::class, 'summary']);
             Route::get('charts',        [Api\DashboardController::class, 'charts']);
             Route::get('pl-report',     [Api\DashboardController::class, 'plReport']);
+            Route::get('finance',       [Api\DashboardController::class, 'financeOverview']);
             Route::get('performance',   [Api\DashboardController::class, 'performance']);
             Route::get('notifications', [Api\DashboardController::class, 'notifications']);
             Route::post('clear-cache',  [Api\DashboardController::class, 'clearCache']);
@@ -288,6 +289,7 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::post('/', [Api\InventoryNewController::class, 'store']); // create item
             Route::get('{inventory}', [Api\InventoryNewController::class, 'show']); // item with stock & recent activity
             Route::put('{inventory}', [Api\InventoryNewController::class, 'update']);
+            Route::delete('{inventory}', [Api\InventoryNewController::class, 'destroy']); // delete inventory (use force=1 to remove stocks)
             Route::get('{inventory}/stocks', [Api\InventoryNewController::class, 'stocks']); // view all stocks for item
             Route::post('{inventory}/stock-in', [Api\InventoryNewController::class, 'stockIn']);
             Route::post('{inventory}/stock-out', [Api\InventoryNewController::class, 'stockOut']);
