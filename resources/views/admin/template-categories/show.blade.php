@@ -66,7 +66,7 @@
             <h5>Templates in this Category</h5>
         </div>
         <div class="card-body p-0">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover datatable mb-0">
                 <thead>
                     <tr>
                         <th>Thumbnail</th>
@@ -138,3 +138,4 @@
         </div>
     </div>
 @endsection
+

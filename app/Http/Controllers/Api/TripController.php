@@ -15,7 +15,7 @@ class TripController extends Controller
 {
     public function __construct(private TripService $service, private NotificationService $notificationService) {}
 
-    public function index(Request $request)
+    public function index_old(Request $request)
     {
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant', 'driver']);
 
@@ -52,6 +52,96 @@ class TripController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while fetching trips.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function index(Request $request)
+    {
+        $this->checkRole(['superadmin', 'admin', 'operator', 'accountant', 'driver']);
+
+        $user = auth()->user();
+
+        try {
+
+            // Base query for counts
+            $baseQuery = Trip::query();
+
+            // Driver can only see own trips
+            if ($user->isDriver()) {
+                $baseQuery->where('driver_id', $user->staff?->id);
+            }
+
+            // Counts
+            $totalTrips = (clone $baseQuery)->count();
+
+            $ongoingTrips = (clone $baseQuery)
+                ->where('status', 'ongoing')
+                ->count();
+
+            $pendingTrips = (clone $baseQuery)
+                ->where('status', 'pending')
+                ->count();
+
+            // Main listing query
+            $query = Trip::with(['vehicle', 'customer', 'driver', 'vehicleTypeDetails'])
+                ->when($request->status, fn($q, $v) =>
+                    $q->where('status', $v)
+                )
+                ->when($request->from, fn($q, $v) =>
+                    $q->whereDate('trip_date', '>=', $v)
+                )
+                ->when($request->to, fn($q, $v) =>
+                    $q->whereDate('trip_date', '<=', $v)
+                )
+                ->when($request->driver_id, fn($q, $v) =>
+                    $q->where('driver_id', $v)
+                )
+                ->when($request->search, function ($q, $v) {
+                    $q->where(function ($qq) use ($v) {
+                        $qq->where('trip_number', 'like', "%{$v}%")
+                            ->orWhere('customer_name', 'like', "%{$v}%")
+                            ->orWhere('trip_route', 'like', "%{$v}%");
+                    });
+                });
+
+            // Driver can only see own trips
+            if ($user->isDriver()) {
+                $query->where('driver_id', $user->staff?->id);
+            }
+
+            $trips = $query->latest('trip_date')
+                ->paginate($request->per_page ?? 20)
+                ->withQueryString();
+
+            return response()->json([
+                'success' => true,
+
+                // Trip Counts
+                'trip_summary' => [
+                    'total_trip'   => $totalTrips,
+                    'ongoing_trip' => $ongoingTrips,
+                    'pending_trip' => $pendingTrips,
+                ],
+
+                // Trip List
+                'data' => TripResource::collection($trips),
+
+                // Pagination
+                'meta' => [
+                    'total'        => $trips->total(),
+                    'current_page' => $trips->currentPage(),
+                    'last_page'    => $trips->lastPage(),
+                    'per_page'     => $trips->perPage(),
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+
             return response()->json([
                 'success' => false,
                 'message' => 'An unexpected error occurred while fetching trips.',

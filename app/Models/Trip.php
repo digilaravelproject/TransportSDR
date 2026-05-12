@@ -61,11 +61,16 @@ class Trip extends Model
     {
         return $this->belongsTo(Tenant::class);
     }
-    public function vehicle()
+    public function vehicle_old()
     {
         return $this->belongsTo(Vehicle::class);
     }
-
+    
+    public function vehicle()
+    {
+        return $this->belongsTo(\App\Models\Vehicle::class, 'vehicle_id');
+    }
+    
     public function vehicleTypeDetails()
     {
         return $this->belongsTo(\App\Models\VehicleType::class, 'vehicle_type');

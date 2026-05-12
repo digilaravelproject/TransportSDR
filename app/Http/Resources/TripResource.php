@@ -18,15 +18,14 @@ class TripResource extends JsonResource
             'pickup_address'     => $this->pickup_address,
             'destination_points' => $this->destination_points,
             'status'       => $this->status,
+            
+            'vehicle_type_details' => $this->vehicleTypeDetails,
+            
+            'number_of_vehicles' => $this->number_of_vehicles,
+            
+            'vehicle' => $this->vehicle,
 
-            'vehicle' => [
-                'id'                 => $this->vehicle?->id,
-                'registration'       => $this->vehicle?->registration_number,
-                'type'               => $this->vehicle_type,
-                'type_name'          => $this->vehicleTypeDetails?->name,
-                'seating_capacity'   => $this->seating_capacity,
-                'number_of_vehicles' => $this->number_of_vehicles,
-            ],
+            
             'customer' => [
                 'id'      => $this->customer?->id,
                 'name'    => $this->customer_name,
@@ -37,17 +36,17 @@ class TripResource extends JsonResource
                 'name'  => $this->driver->name,
                 'phone' => $this->driver->phone,
             ] : null,
-            'helper' => $this->helper ? [
-                'id'    => $this->helper->id,
-                'name'  => $this->helper->name,
-                'phone' => $this->helper->phone,
-            ] : null,
-            'km' => [
-                'start' => $this->start_km,
-                'end'   => $this->end_km,
-                'total' => $this->total_km,
-                'grade' => $this->km_grade,
-            ],
+            // 'helper' => $this->helper ? [
+            //     'id'    => $this->helper->id,
+            //     'name'  => $this->helper->name,
+            //     'phone' => $this->helper->phone,
+            // ] : null,
+            // 'km' => [
+            //     'start' => $this->start_km,
+            //     'end'   => $this->end_km,
+            //     'total' => $this->total_km,
+            //     'grade' => $this->km_grade,
+            // ],
             'payment' => [
                 'total'          => (float) $this->total_amount,
                 'advance'        => (float) $this->advance_amount,

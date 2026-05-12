@@ -11,6 +11,7 @@
     <!-- DataTables dark theme -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <link href="{{ asset('css/admin-dashboard.css') }}" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -21,7 +22,9 @@
         /* Sidebar Styling */
         .sidebar {
             min-height: 100vh;
-            background: linear-gradient(180deg,#0b1220,#0f1724);
+            /* background: linear-gradient(180deg,#0b1220,#0f1724);
+             */
+            background: linear-gradient(180deg, #232526 0%, #414345 100%);
             color: #cbd5e1;
             transition: all 0.3s;
             z-index: 1000;
@@ -72,7 +75,7 @@
         }
 
         .content-area {
-            padding: 2rem;
+            padding: 12px 18px !important;
             width: 100%;
             background: transparent;
         }
@@ -108,14 +111,14 @@
 
         /* Card & UI Enhancements */
         .card {
-            border: none;
-            border-radius: 12px;
-            background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-            box-shadow: 0 12px 30px rgba(2,6,23,0.6);
+            border: 1px solid rgba(255,255,255,0.03) !important;
+            border-radius: 16px !important;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)) !important;
+            box-shadow: 0 8px 24px rgba(2,6,23,0.8) !important;
             transition: transform 0.16s;
         }
 
-        .card:hover { transform: translateY(-4px); }
+        .card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(2,6,23,0.95) !important; }
 
         .stats-icon {
             width: 48px;
@@ -151,7 +154,7 @@
         }
         .dataTables_wrapper .dataTables_filter input,
         .dataTables_wrapper .dataTables_length select,
-        input.form-control, textarea.form-control, select.form-control {
+        input.form-control, textarea.form-control, select.form-control, .form-select {
             background: rgba(255,255,255,0.03) !important;
             border: 1px solid rgba(255,255,255,0.04) !important;
             color: #e6eef6 !important;
@@ -174,11 +177,15 @@
             color: #e6f9f1 !important;
         }
         /* Card form areas */
-        .card .card-body {
-            background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));
+        .card-body {
+            background: transparent !important;
         }
         label, .form-label, .form-text {
-            color: #bcd0de;
+            color: #94a3b8 !important;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
         }
         .btn-primary {
             background: #0d6efd;
@@ -207,6 +214,42 @@
             background: #94a3b8 !important;
             color: #071019 !important;
         }
+        
+        /* Global Overrides for hardcoded Light theme classes across views */
+        .bg-light, .bg-white { background: transparent !important; }
+        .table-light, .table-light th, .table-light td {
+            background: rgba(255,255,255,0.02) !important;
+            color: #a8c0d8 !important;
+            border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+        }
+        .table-hover tbody tr:hover td, .table-hover tbody tr:hover th {
+            background-color: rgba(255, 255, 255, 0.04) !important;
+        }
+        .card-header.bg-light, .card-footer.bg-light {
+            background: rgba(0,0,0,0.2) !important;
+            border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+            border-top: 1px solid rgba(255,255,255,0.05) !important;
+            color: #f8fafc !important;
+        }
+        .text-dark { color: #f8fafc !important; }
+        .text-muted { color: #94a3b8 !important; }
+        .list-group-item {
+            background-color: transparent !important;
+            border-color: rgba(255, 255, 255, 0.05) !important;
+            color: #c7d6e6 !important;
+        }
+        .border-warning { border-color: rgba(245, 158, 11, 0.4) !important; }
+        hr { border-color: rgba(255,255,255,0.1) !important; }
+        .modal-content {
+            background: linear-gradient(180deg,#0b1220,#0f1724) !important;
+            color: #c7d6e6;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+        }
+        .modal-header { border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .modal-footer { border-top: 1px solid rgba(255,255,255,0.05); }
+        .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+
         /* Small tweaks for table responsiveness */
         .table-responsive { padding: 6px; }
         .datatable_wrapper { overflow: visible; }
@@ -312,6 +355,12 @@
                         <a class="nav-link {{ str_contains(Route::currentRouteName(), 'admin.leads') ? 'active' : '' }}"
                             href="{{ route('admin.leads.index') }}">
                             <i class="fas fa-envelope-open-text me-2"></i> Leads
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains(Route::currentRouteName(), 'admin.trips') ? 'active' : '' }}"
+                            href="{{ route('admin.trips.index') }}">
+                            <i class="fas fa-route me-2"></i> Trips
                         </a>
                     </li>
                     <li class="nav-item mt-4 px-3">
