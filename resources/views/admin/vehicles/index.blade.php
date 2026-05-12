@@ -17,12 +17,12 @@
                  <div class="label">Total Vehicles</div>
                  <div class="value text-white">{{ $vehicles->count() }}</div>
              </div>
-             <div class="stat-card">
+                 <div class="stat-card">
                  <div class="stat-pill">
                      <i class="fas fa-check-circle text-success"></i>
                  </div>
                  <div class="label">Available</div>
-                 <div class="value text-white">{{ collect($vehicles->items())->where('is_available', 1)->count() }}</div>
+                 <div class="value text-white">{{ ($vehicles instanceof \Illuminate\Pagination\LengthAwarePaginator) ? $vehicles->getCollection()->where('is_available', 1)->count() : $vehicles->where('is_available', 1)->count() }}</div>
              </div>
         </div>
     </div>

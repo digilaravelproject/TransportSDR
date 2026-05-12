@@ -17,7 +17,7 @@
 </div>
 
 <div class="row">
-    <div class="col-md-8">
+    <div class="col-md-12 extra">
         <div class="card">
             <div class="card-body">
                 <form method="POST" action="{{ route('admin.vendors.update', $vendor->id) }}">
@@ -85,7 +85,7 @@
 
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                         <a href="{{ route('admin.vendors.index') }}" class="btn btn-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Update Vendor</button>
+                        <button type="submit" class="btn btn-secondary"><i class="fas fa-save me-2"></i>Update Vendor</button>
                     </div>
                 </form>
             </div>

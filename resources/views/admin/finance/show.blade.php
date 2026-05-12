@@ -31,7 +31,7 @@
     </div>
     
     <div class="dashboard-main row g-4">
-        <div class="col-md-8 mx-auto">
+        <div class="col-md-12 extra mx-auto">
             <div class="dashboard-card" style="background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; padding:18px; box-shadow:0 8px 24px rgba(2,6,23,0.6)">
                 <h5 class="fw-bold text-white mb-3" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">Transaction Details</h5>
                 

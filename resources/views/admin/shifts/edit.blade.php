@@ -26,13 +26,17 @@
 @endif
 
 <div class="row">
-    <div class="col-md-8">
+    <div class="col-md-12 extra">
         <div class="card">
             <div class="card-body">
                 <form action="{{ route('admin.shifts.update', $shift->id) }}" method="POST">
                     @csrf
                     @method('PUT')
 
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Shift Name *</label>
+                        <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ old('name', $shift->name) }}" required>
+                        @error('name')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
                     </div>
@@ -139,7 +143,7 @@
 
                     <div class="form-footer">
                         <a href="{{ route('admin.shifts.index') }}" class="btn btn-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary">Update Shift</button>
+                        <button type="submit" class="btn btn-secondary">Update Shift</button>
                     </div>
                 </form>
             </div>

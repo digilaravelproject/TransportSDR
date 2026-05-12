@@ -8,6 +8,9 @@ use App\Http\Resources\TripResource;
 use App\Models\Trip;
 use App\Models\Vehicle;
 use App\Models\Staff;
+use App\Models\TripExpense;
+use App\Models\RoleModule;
+use App\Models\TripDutySheet;
 use App\Services\TripService;
 use App\Services\Notification\NotificationService;
 use Illuminate\Http\Request;
@@ -18,7 +21,7 @@ class TripController extends Controller
     public function __construct(private TripService $service, private NotificationService $notificationService) {}
 
     // GET /api/v1/trips/vehicles/list
-    public function vehicleList()
+    public function vehicleList_old()
     {
         $vehicles = Vehicle::select('id','registration_number','type','seating_capacity','is_available')->get()
             ->map(fn($v) => [
@@ -31,9 +34,49 @@ class TripController extends Controller
 
         return response()->json(['success' => true, 'data' => $vehicles]);
     }
+    
+    // GET /api/v1/trips/vehicles/list
+    public function vehicleList()
+    {
+        $vehicles = Vehicle::select(
+                'id',
+                'registration_number',
+                'type',
+                'seating_capacity',
+                'is_available'
+            )
+            ->get()
+            ->map(function ($v) {
+    
+                // If type is integer, get name from vehicle_types table
+                if (is_numeric($v->type)) {
+                    $vehicleType = \DB::table('vehicle_types')
+                        ->where('id', $v->type)
+                        ->value('name');
+    
+                    $type = $vehicleType ?? $v->type;
+                } else {
+                    // If already string, use directly
+                    $type = $v->type;
+                }
+    
+                return [
+                    'id' => $v->id,
+                    'registration_number' => $v->registration_number,
+                    'type' => $type,
+                    'seating_capacity' => $v->seating_capacity,
+                    'status' => $v->is_available ? 'available' : 'on_trip'
+                ];
+            });
+    
+        return response()->json([
+            'success' => true,
+            'data' => $vehicles
+        ]);
+    }
 
     // GET /api/v1/trips/drivers/list
-    public function driverList()
+    public function driverList_old()
     {
         $drivers = Staff::drivers()->select('id','name','phone','is_available')->get()
             ->map(fn($d) => [
@@ -44,6 +87,43 @@ class TripController extends Controller
             ]);
 
         return response()->json(['success' => true, 'data' => $drivers]);
+    }
+    
+    // GET /api/v1/trips/drivers/list
+    public function driverList()
+    {
+        $tenantId = auth()->user()->tenant_id;
+    
+        // Get driver role id for current tenant
+        $driverRole = RoleModule::where('tenant_id', $tenantId)
+            ->whereIn('name', ['Driver', 'driver'])
+            ->first();
+    
+        // If role not found
+        if (!$driverRole) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Driver role not found'
+            ]);
+        }
+    
+        // Get drivers
+        $drivers = Staff::where('tenant_id', $tenantId)
+            ->where('staff_type', $driverRole->id)
+            ->whereNull('deleted_at') // not trashed
+            ->select('id', 'name', 'phone', 'is_available')
+            ->get()
+            ->map(fn ($d) => [
+                'id' => $d->id,
+                'name' => $d->name,
+                'phone' => $d->phone,
+                'status' => $d->is_available ? 'available' : 'on_trip'
+            ]);
+    
+        return response()->json([
+            'success' => true,
+            'data' => $drivers
+        ]);
     }
 
     public function index_old(Request $request)
@@ -510,6 +590,87 @@ class TripController extends Controller
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Failed to assign drivers.', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    // GET /api/v1/trips/{trip}/expenses
+    public function expenses(Trip $trip)
+    {
+        $items = TripExpense::where('trip_id', $trip->id)->get();
+        return response()->json(['success' => true, 'data' => $items]);
+    }
+
+    // POST /api/v1/trips/{trip}/expenses
+    public function addExpense(Request $request, Trip $trip)
+    {
+        $data = $request->validate([
+            'category' => 'nullable|string',
+            'amount' => 'required|numeric|min:0',
+            'description' => 'nullable|string',
+            'entry_date' => 'nullable|date',
+            'receipt' => 'nullable|file|mimes:png,jpg,jpeg,pdf|max:5120',
+        ]);
+
+        $path = null;
+        if ($request->hasFile('receipt')) {
+            $file = $request->file('receipt');
+            $path = $file->storePubliclyAs(
+                "tenants/" . (auth()->user()->tenant_id ?? '0') . "/trips/{$trip->id}/receipts",
+                time() . '_' . $file->getClientOriginalName(),
+                'public'
+            );
+        }
+
+        $expense = TripExpense::create([
+            'tenant_id' => auth()->user()->tenant_id ?? null,
+            'trip_id' => $trip->id,
+            'category' => $data['category'] ?? null,
+            'amount' => $data['amount'],
+            'description' => $data['description'] ?? null,
+            'entry_date' => $data['entry_date'] ?? now()->toDateString(),
+            'receipt_path' => $path,
+            'created_by' => auth()->id(),
+        ]);
+
+        try { $this->notificationService->create('Expense Added', "Expense of {$expense->amount} added to {$trip->trip_number}", ['trip_id' => $trip->id, 'expense_id' => $expense->id], 'expense', 'low'); } catch (\Throwable $e) {}
+
+        return response()->json(['success' => true, 'message' => 'Expense added.', 'data' => $expense], 201);
+    }
+
+    // GET /api/v1/trips/{trip}/duty-sheets
+    public function dutySheets(Trip $trip)
+    {
+        $items = TripDutySheet::where('trip_id', $trip->id)->with('uploader')->get();
+        return response()->json(['success' => true, 'data' => $items]);
+    }
+
+    // POST /api/v1/trips/{trip}/duty-sheets
+    public function uploadDutySheet(Request $request, Trip $trip)
+    {
+        $data = $request->validate([
+            'file' => 'required|file|mimes:png,jpg,jpeg,pdf|max:5120',
+            'notes' => 'nullable|string',
+        ]);
+
+        $file = $request->file('file');
+        $fileName = time() . '_' . $file->getClientOriginalName();
+        $path = $file->storePubliclyAs(
+            "tenants/" . (auth()->user()->tenant_id ?? '0') . "/trips/{$trip->id}/duty_sheets",
+            $fileName,
+            'public'
+        );
+
+        $sheet = TripDutySheet::create([
+            'tenant_id' => auth()->user()->tenant_id ?? null,
+            'trip_id' => $trip->id,
+            'uploaded_by' => auth()->id(),
+            'file_path' => $path,
+            'file_name' => $fileName,
+            'notes' => $data['notes'] ?? null,
+        ]);
+
+        try { $this->notificationService->create('Duty Sheet Uploaded', "Duty sheet uploaded for {$trip->trip_number}", ['trip_id' => $trip->id, 'duty_sheet_id' => $sheet->id], 'duty_sheet', 'low'); } catch (\Throwable $e) {}
+
+        return response()->json(['success' => true, 'message' => 'Duty sheet uploaded.', 'data' => $sheet], 201);
     }
 
     // Role check helper

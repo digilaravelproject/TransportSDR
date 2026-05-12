@@ -12,7 +12,7 @@
                 <a href="{{ route('admin.document-templates.create') }}?category={{ $templateCategory->id }}" class="btn btn-success">
                     <i class="fas fa-plus me-1"></i>Add Template
                 </a>
-                <a href="{{ route('admin.template-categories.edit', $templateCategory->id) }}" class="btn btn-primary">
+                <a href="{{ route('admin.template-categories.edit', $templateCategory->id) }}" class="btn btn-secondary">
                     <i class="fas fa-edit me-1"></i>Edit
                 </a>
                 <a href="{{ route('admin.template-categories.index') }}" class="btn btn-secondary">

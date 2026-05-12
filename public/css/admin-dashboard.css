@@ -1,19 +1,118 @@
 /* Admin dashboard dark theme styles extracted from blade */
+
+/* Prevent horizontal overflow and ensure dashboard fits the viewport */
+html, body {
+    overflow-x: hidden;
+    height: 100%;
+}
+.content-area {
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+/* Use border-box globally to avoid width surprises */
+*, *::before, *::after { box-sizing: border-box; }
+.main-wrapper {
+    overflow-x: hidden;
+}
+.content-area {
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
 .dashboard-shell {
     background: linear-gradient(90deg, #232526 0%, #414345 100%);
     /* background: linear-gradient(90deg, #2c3e50 0%, #4b6b8a 100%); */
     color: #e6eef8;
     padding: 24px;
     border-radius: 16px;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    box-sizing: border-box;
 }
 
-.top-row { display:flex; gap:20px; align-items:center; }
+body,
+body * {
+    color: #c7d6e6 !important;
+}
+
+.form-select {
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #c7d6e6;
+}
+
+.form-select option {
+    background: #4f545d;
+    color: #c7d6e6;
+}
+
+::placeholder,
+.form-control::placeholder,
+input::placeholder,
+textarea::placeholder {
+    color: #c7d6e6 !important;
+    opacity: 1 !important;
+}
+
+/* Pagination Container */
+.dataTables_paginate,
+.pagination {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Pagination Buttons */
+.dataTables_paginate .paginate_button,
+.pagination .page-link {
+    background: rgba(255,255,255,0.04) !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    color: #c7d6e6 !important;
+    border-radius: 12px !important;
+    padding: 10px 18px !important;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.25);
+}
+
+/* Hover */
+.dataTables_paginate .paginate_button:hover,
+.pagination .page-link:hover {
+    background: rgba(59,130,246,0.18) !important;
+    border-color: rgba(59,130,246,0.35) !important;
+    color: #ffffff !important;
+}
+
+/* Active Page */
+.dataTables_paginate .paginate_button.current,
+.pagination .page-item.active .page-link {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    border-color: #2563eb !important;
+    color: #ffffff !important;
+    box-shadow: 0 6px 22px rgba(37,99,235,0.35);
+}
+
+/* Disabled */
+.dataTables_paginate .paginate_button.disabled,
+.pagination .page-item.disabled .page-link {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: rgba(255,255,255,0.03) !important;
+    color: #94a3b8 !important;
+}
+
+/* Remove default datatable weird spacing */
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    margin-left: 0 !important;
+}
+
+top-row { display:flex; gap:20px; align-items:center; }
 .welcome-col { flex:1; }
-.cards-col { flex:2; display:flex; gap:16px; }
+.cards-col { flex:2; display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; }
 
 .stat-card {
     background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-    border-radius: 12px; padding:18px; flex:1;
+    border-radius: 12px; padding:18px; flex: 1 1 140px; min-width: 0;
     box-shadow: 0 6px 18px rgba(2,6,23,0.6);
 }
 

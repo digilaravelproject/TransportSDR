@@ -73,7 +73,7 @@
                                 <input type="password" class="form-control" id="password" name="password" required>
                             </div>
                             <div class="d-grid">
-                                <button type="submit" class="btn btn-primary btn-login">Login</button>
+                                <button type="submit" class="btn btn-secondary btn-login">Login</button>
                             </div>
                         </form>
                     </div>

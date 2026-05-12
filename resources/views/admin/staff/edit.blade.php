@@ -235,8 +235,8 @@
         </div>
 
         <div class="d-flex justify-content-end gap-2 mb-5">
-            <a href="{{ route('admin.staff.index') }}" class="btn btn-light">Cancel</a>
-            <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-save me-1"></i> Update Staff
+            <a href="{{ route('admin.staff.index') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-secondary btn-lg"><i class="fas fa-save me-1"></i> Update Staff
                 Profile</button>
         </div>
     </form>

@@ -60,7 +60,7 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-primary">
+            <button type="submit" class="btn btn-secondary">
                 <i class="fas fa-save me-1"></i> Update Subscription
             </button>
         </form>

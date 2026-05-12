@@ -44,7 +44,7 @@
                 <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
                 <label class="form-check-label" for="is_active">Active</label>
             </div>
-            <button class="btn btn-primary">Create Type</button>
+            <button class="btn btn-secondary">Create Type</button>
         </form>
     </div>
 </div>

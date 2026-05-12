@@ -42,7 +42,7 @@
     
     <div class="dashboard-main row g-4">
         <!-- Left Column -->
-        <div class="col-md-8">
+        <div class="col-md-12 extra">
             <!-- Lead Details Form -->
             <div class="dashboard-card mb-4" style="background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; padding:18px; box-shadow:0 8px 24px rgba(2,6,23,0.6)">
                 <h5 class="fw-bold text-white mb-3" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">Lead Details</h5>
@@ -213,7 +213,7 @@
       <div class="modal-body text-dark">
         <div class="mb-2"><label>Note Content</label><textarea name="note" class="form-control" rows="3" required></textarea></div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Note</button></div>
+      <div class="modal-footer"><button type="submit" class="btn btn-secondary">Save Note</button></div>
     </form>
   </div>
 </div>
@@ -230,7 +230,7 @@
         <div class="mb-2"><label>Followup Date</label><input type="date" name="followup_date" class="form-control" required></div>
         <div class="mb-2"><label>Notes</label><textarea name="notes" class="form-control" rows="3" required></textarea></div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Followup</button></div>
+      <div class="modal-footer"><button type="submit" class="btn btn-secondary">Save Followup</button></div>
     </form>
   </div>
 </div>
@@ -249,7 +249,7 @@
         <div class="mb-2"><label>Description</label><textarea name="description" class="form-control" rows="2"></textarea></div>
         <div class="mb-2"><label>Receipt</label><input type="file" name="receipt" class="form-control"></div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Expense</button></div>
+      <div class="modal-footer"><button type="submit" class="btn btn-secondary">Save Expense</button></div>
     </form>
   </div>
 </div>
@@ -266,7 +266,7 @@
         <div class="mb-2"><label>Duty Sheet File</label><input type="file" name="file" class="form-control" required></div>
         <div class="mb-2"><label>Notes</label><textarea name="notes" class="form-control" rows="2"></textarea></div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Upload</button></div>
+      <div class="modal-footer"><button type="submit" class="btn btn-secondary">Upload</button></div>
     </form>
   </div>
 </div>

@@ -37,7 +37,7 @@
     
     <div class="dashboard-main row g-4">
         <!-- Left Column -->
-        <div class="col-md-8">
+        <div class="col-md-12 extra">
             <!-- Trip Information -->
             <div class="dashboard-card mb-4" style="background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; padding:18px; box-shadow:0 8px 24px rgba(2,6,23,0.6)">
                 <h5 class="fw-bold text-white mb-3" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">Trip Information</h5>
@@ -173,7 +173,7 @@
         <div class="mb-2"><label>Date</label><input type="date" name="payment_date" class="form-control" value="{{ date('Y-m-d') }}" required></div>
         <div class="mb-2"><label>Notes</label><textarea name="notes" class="form-control" rows="2"></textarea></div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Payment</button></div>
+      <div class="modal-footer"><button type="submit" class="btn btn-secondary">Save Payment</button></div>
     </form>
   </div>
 </div>

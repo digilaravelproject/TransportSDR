@@ -76,6 +76,10 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::post('payment',    [Api\TripController::class, 'addPayment']);
             Route::post('assign-vehicles', [Api\TripController::class, 'assignVehicles']);
             Route::post('assign-drivers', [Api\TripController::class, 'assignDrivers']);
+            Route::get('expenses', [Api\TripController::class, 'expenses']);
+            Route::post('expenses', [Api\TripController::class, 'addExpense']);
+            Route::get('duty-sheets', [Api\TripController::class, 'dutySheets']);
+            Route::post('duty-sheets', [Api\TripController::class, 'uploadDutySheet']);
             Route::get('invoice',     [Api\TripController::class, 'invoice']);
             Route::get('duty-slip',   [Api\TripController::class, 'dutySlip']);
         });

@@ -16,7 +16,7 @@
 </div>
 
 <div class="row">
-    <div class="col-md-8">
+    <div class="col-md-12 extra">
         <div class="card mb-3">
             <div class="card-header">
                 <h5>Plan Details</h5>
@@ -142,7 +142,7 @@
                 <h5>Actions</h5>
             </div>
             <div class="card-body">
-                <a href="{{ route('admin.plans.edit', $plan->id) }}" class="btn btn-primary w-100 mb-2">
+                <a href="{{ route('admin.plans.edit', $plan->id) }}" class="btn btn-secondary w-100 mb-2">
                     <i class="fas fa-edit me-2"></i> Edit Plan
                 </a>
                 <form method="POST" action="{{ route('admin.plans.destroy', $plan->id) }}">

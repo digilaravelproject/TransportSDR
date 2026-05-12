@@ -4,12 +4,12 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>Modules</h2>
-        <a href="{{ route('admin.modules.create') }}" class="btn btn-primary">Add Module</a>
+        <a href="{{ route('admin.modules.create') }}" class="btn btn-secondary">Add Module</a>
     </div>
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
-    <table class="table table-bordered">
+    <table class="table table-bordered datatable mb-0">
         <thead>
             <tr>
                 <th>ID</th>

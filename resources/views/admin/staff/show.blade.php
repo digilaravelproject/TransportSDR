@@ -148,7 +148,7 @@
                                 <div class="card h-100 border-0" style="background: rgba(0,0,0,0.2); border-radius: 12px;">
                                     <div class="card-header border-0 text-white fw-bold pb-0 pt-3 bg-transparent">Salary History</div>
                                     <div class="card-body p-0">
-                                        <table class="table shipment-table mb-0">
+                                        <table class="table shipment-table datatable mb-0">
                                             <thead>
                                                 <tr>
                                                     <th>Month/Year</th>
@@ -184,7 +184,7 @@
                                         <button class="btn btn-sm" style="background: rgba(245, 158, 11, 0.1); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 6px;" data-bs-toggle="modal" data-bs-target="#advanceModal">Give Advance</button>
                                     </div>
                                     <div class="card-body p-0">
-                                        <table class="table shipment-table mb-0">
+                                        <table class="table shipment-table datatable mb-0">
                                             <thead>
                                                 <tr>
                                                     <th>Date</th>
@@ -275,7 +275,7 @@
         <div class="mb-2"><label>Number</label><input type="text" name="document_number" class="form-control"></div>
         <div class="mb-2"><label>File</label><input type="file" name="file" class="form-control" required></div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Upload</button></div>
+      <div class="modal-footer"><button type="submit" class="btn btn-secondary">Upload</button></div>
     </form>
   </div>
 </div>
@@ -299,7 +299,7 @@
         </div>
         <div class="mb-2"><label>Purpose/Notes</label><input type="text" name="notes" class="form-control"></div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Save</button></div>
+      <div class="modal-footer"><button type="submit" class="btn btn-secondary">Save</button></div>
     </form>
   </div>
 </div>
@@ -317,7 +317,7 @@
         <div class="mb-2"><label>Date</label><input type="date" name="advance_date" class="form-control" value="{{ date('Y-m-d') }}" required></div>
         <div class="mb-2"><label>Reason</label><input type="text" name="reason" class="form-control"></div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Give Advance</button></div>
+      <div class="modal-footer"><button type="submit" class="btn btn-secondary">Give Advance</button></div>
     </form>
   </div>
 </div>

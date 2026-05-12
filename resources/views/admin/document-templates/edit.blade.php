@@ -22,7 +22,14 @@
 
                         <div class="row">
                             <div class="col-md-6">
-                                
+                                <div class="mb-3">
+                                    <label class="form-label">Name *</label>
+                                    <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
+                                        value="{{ old('name', $documentTemplate->name) }}" required>
+                                    @error('name')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -113,7 +120,7 @@
                                 target="_blank" class="btn btn-outline-secondary">
                                 <i class="fas fa-eye me-1"></i>Preview PDF
                             </a>
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="btn btn-secondary">
                                 <i class="fas fa-save me-1"></i>Update Template
                             </button>
                         </div>

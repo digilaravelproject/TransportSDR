@@ -26,13 +26,17 @@
 @endif
 
 <div class="row">
-    <div class="col-md-8">
+    <div class="col-md-12 extra">
         <div class="card">
             <div class="card-body">
                 <form action="{{ route('admin.plans.update', $plan->id) }}" method="POST">
                     @csrf
                     @method('PUT')
 
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Plan Name *</label>
+                        <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ old('name', $plan->name) }}" required>
+                        @error('name')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
                     </div>
@@ -148,7 +152,7 @@
 
                     <div class="form-footer">
                         <a href="{{ route('admin.plans.index') }}" class="btn btn-secondary">Back</a>
-                        <button type="submit" class="btn btn-primary">Update Plan</button>
+                        <button type="submit" class="btn btn-secondary">Update Plan</button>
                     </div>
                 </form>
             </div>

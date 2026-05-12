@@ -16,9 +16,9 @@
 </div>
 
 <div class="row">
-    <div class="col-md-8">
+    <div class="col-md-12 extra">
         <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
+            <div class="card-header bg-secondary text-white">
                 <h5 class="mb-0">Details</h5>
             </div>
             <div class="card-body">
@@ -80,7 +80,7 @@
                 <h5 class="mb-0">Actions</h5>
             </div>
             <div class="card-body">
-                <a href="{{ route('admin.subscriptions.edit', $subscription->id) }}" class="btn btn-primary w-100 mb-2">
+                <a href="{{ route('admin.subscriptions.edit', $subscription->id) }}" class="btn btn-secondary w-100 mb-2">
                     <i class="fas fa-edit me-1"></i> Edit Subscription
                 </a>
                 

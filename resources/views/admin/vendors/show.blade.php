@@ -189,7 +189,7 @@
             <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
         </div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Assign</button></div>
+      <div class="modal-footer"><button type="submit" class="btn btn-secondary">Assign</button></div>
     </form>
   </div>
 </div>
@@ -213,7 +213,7 @@
             <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
         </div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Assign</button></div>
+      <div class="modal-footer"><button type="submit" class="btn btn-secondary">Assign</button></div>
     </form>
   </div>
 </div>
@@ -239,7 +239,7 @@
         </div>
         <div class="mb-2"><label>File/Receipt</label><input type="file" name="file" class="form-control"></div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Bill</button></div>
+      <div class="modal-footer"><button type="submit" class="btn btn-secondary">Save Bill</button></div>
     </form>
   </div>
 </div>

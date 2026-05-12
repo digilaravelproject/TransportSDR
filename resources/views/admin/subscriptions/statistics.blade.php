@@ -17,7 +17,7 @@
 
 <div class="row">
     <div class="col-md-4 mb-4">
-        <div class="card h-100 bg-primary text-white">
+        <div class="card h-100 bg-secondary text-white">
             <div class="card-body">
                 <h5 class="card-title">30-Day Revenue</h5>
                 <h3>₹{{ number_format($monthlyRevenue, 2) }}</h3>
@@ -58,7 +58,7 @@
                     @forelse($subscriptionsByPlan as $stat)
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             {{ $stat->plan ? $stat->plan->name : 'Unknown Plan' }}
-                            <span class="badge bg-primary rounded-pill">{{ $stat->total }}</span>
+                            <span class="badge bg-secondary rounded-pill">{{ $stat->total }}</span>
                         </li>
                     @empty
                         <li class="list-group-item text-muted">No active subscriptions by plan yet.</li>

@@ -45,7 +45,7 @@
                 <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {{ $vehicleType->is_active ? 'checked' : '' }}>
                 <label class="form-check-label" for="is_active">Active</label>
             </div>
-            <button class="btn btn-primary">Update Type</button>
+            <button class="btn btn-secondary">Update Type</button>
         </form>
     </div>
 </div>

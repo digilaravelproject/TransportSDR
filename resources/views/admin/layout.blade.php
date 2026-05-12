@@ -15,7 +15,8 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #07080a;
+            /* background-color: #07080a; */
+            background: linear-gradient(90deg, #232526 0%, #414345 100%);
             color: #c7d6e6;
         }
 
@@ -241,7 +242,8 @@
         .border-warning { border-color: rgba(245, 158, 11, 0.4) !important; }
         hr { border-color: rgba(255,255,255,0.1) !important; }
         .modal-content {
-            background: linear-gradient(180deg,#0b1220,#0f1724) !important;
+            /* background: linear-gradient(180deg,#0b1220,#0f1724) !important; */
+            background: linear-gradient(180deg, #232526 0%, #414345 100%) !important;
             color: #c7d6e6;
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 12px;

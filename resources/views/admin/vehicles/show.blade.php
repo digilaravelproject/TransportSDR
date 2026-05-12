@@ -239,7 +239,7 @@
         <div class="mb-2"><label>Station Name</label><input type="text" name="station_name" class="form-control"></div>
         <div class="mb-2"><label>Receipt File</label><input type="file" name="receipt" class="form-control"></div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Save</button></div>
+      <div class="modal-footer"><button type="submit" class="btn btn-secondary">Save</button></div>
     </form>
   </div>
 </div>
@@ -261,7 +261,7 @@
         <div class="mb-2"><label>KM Reading</label><input type="number" name="km_reading" class="form-control"></div>
         <div class="mb-2"><label>Receipt File</label><input type="file" name="receipt" class="form-control"></div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Save</button></div>
+      <div class="modal-footer"><button type="submit" class="btn btn-secondary">Save</button></div>
     </form>
   </div>
 </div>
@@ -281,7 +281,7 @@
         <div class="mb-2"><label>Amount</label><input type="number" step="0.01" name="amount" class="form-control" required></div>
         <div class="mb-2"><label>Receipt File</label><input type="file" name="receipt" class="form-control"></div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Save</button></div>
+      <div class="modal-footer"><button type="submit" class="btn btn-secondary">Save</button></div>
     </form>
   </div>
 </div>
@@ -301,7 +301,7 @@
         <div class="mb-2"><label>Expiry Date</label><input type="date" name="expiry_date" class="form-control"></div>
         <div class="mb-2"><label>File</label><input type="file" name="file" class="form-control" required></div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Upload</button></div>
+      <div class="modal-footer"><button type="submit" class="btn btn-secondary">Upload</button></div>
     </form>
   </div>
 </div>

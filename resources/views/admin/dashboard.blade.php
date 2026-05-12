@@ -3,123 +3,18 @@
 @section('title', 'Dashboard')
 
 @section('content')
-<link href="{{ asset('css/admin-dashboard.css') }}" rel="stylesheet">
-<style>
-    /* Make dashboard page fullscreen and remove white border */
-    body { background: #07080a !important; }
-    .content-area { background: transparent !important; padding: 12px 18px !important; }
-    /* Reduce heavy rounding so the panel looks wide */
-    .dashboard-shell { border-radius: 10px; margin: 0; display: flex; flex-direction: column; height: calc(100vh - 100px); overflow: hidden; }
-    /* Ensure sidebar still sits flush */
-    .sidebar { box-shadow: none; }
-    
-    /* Compact dashboard layout */
-    .top-row { margin-bottom: 8px; }
-    .welcome-col h1 { font-size: 22px !important; }
-    .welcome-col p { font-size: 12px !important; }
-    .cards-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; overflow-x: auto; padding-right: 5px; }
-    .stat-card { min-width: 130px; }
-    .stat-pill { gap: 6px; }
-    .stat-pill > div:first-child { width: 36px !important; height: 36px !important; }
-    .stat-card .label { font-size: 11px; }
-    .stat-card .value { font-size: 16px !important; }
-    
-    /* Main dashboard content with flex layout */
-    .dashboard-main { display: flex; gap: 12px; flex: 1; overflow: hidden; }
-    .left-panel { flex: 1; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; padding-right: 5px; }
-    .right-panel { width: 280px; display: flex; flex-direction: column; gap: 8px; }
-    
-    .chart-card { padding: 12px; background: #0b0d10; border: 1px solid #1f2937; border-radius: 8px; }
-    .chart-card h5 { font-size: 13px !important; }
-    .chart-card h6 { font-size: 12px !important; }
-    
-    .activity-card { padding: 12px; background: #0b0d10; border: 1px solid #1f2937; border-radius: 8px; overflow-y: auto; }
-    .shipment-table { font-size: 11px; }
-    .shipment-table thead th { padding: 4px 6px; }
-    .shipment-table tbody td { padding: 4px 6px; }
-    
-    .map-card { padding: 12px; background: #0b0d10; border: 1px solid #1f2937; border-radius: 8px; flex: 1; }
-    
-    #volumeChart { height: 140px !important; }
-    
-    /* Scrollbar styling */
-    .cards-col::-webkit-scrollbar,
-    .left-panel::-webkit-scrollbar {
-        height: 4px;
-        width: 4px;
-    }
-    .cards-col::-webkit-scrollbar-track,
-    .left-panel::-webkit-scrollbar-track {
-        background: #0b0d10;
-    }
-    .cards-col::-webkit-scrollbar-thumb,
-    .left-panel::-webkit-scrollbar-thumb {
-        background: #374151;
-        border-radius: 2px;
-    }
-</style>
 
 @php
-    use App\Models\Trip;
-    use App\Models\Vehicle;
-    use App\Models\Shift;
-    use App\Models\Staff;
-    use App\Models\Lead;
-    use App\Models\Customer;
-    use App\Models\OnlinePayment;
-    use App\Models\Inventory;
-    use App\Models\VehicleMaintenanceLog;
-    
-    // Trip Metrics
-    $totalPieces = Trip::count();
-    $delivered = Trip::whereIn('status', ['delivered','completed','paid'])->count();
-    $activeTracking = Trip::whereNotIn('status', ['delivered','completed'])->count();
-
-    // Vehicle Metrics
-    $totalVehicles = Vehicle::count();
-    $activeVehicles = Vehicle::where('is_active', true)->count();
-    $vehicleInMaintenance = VehicleMaintenanceLog::where('status', '!=', 'completed')->count();
-
-    // Shift Metrics
-    $totalShifts = Shift::count();
-    $activeShifts = Shift::where('is_active', true)->count();
-
-    // Staff Metrics
-    $totalStaff = Staff::count();
-    $activeStaff = Staff::where('is_active', true)->count();
-    $staffOnLeave = Staff::where('is_active', true)->where('is_available', false)->count();
-
-    // Lead Metrics
-    $totalLeads = Lead::count();
-    $qualifiedLeads = Lead::where('status', 'qualified')->count();
-    $convertedLeads = Lead::where('status', 'converted')->count();
-
-    // Customer Metrics
-    $totalCustomers = Customer::count();
-    $activeCustomers = Customer::where('is_active', true)->count();
-
-    // Payment Metrics
-    $totalPayments = OnlinePayment::count();
-    $completedPayments = OnlinePayment::where('status', 'completed')->count();
-    $pendingPayments = OnlinePayment::where('status', 'pending')->count();
-
-    // Inventory Metrics
-    $totalInventoryItems = Inventory::count();
-    $lowStockItems = Inventory::where('quantity_in_stock', '<', 10)->count();
-
-    $year = now()->format('Y');
-    $monthly = [];
-    for ($m = 1; $m <= 12; $m++) {
-        $monthly[] = Trip::whereYear('created_at', $year)->whereMonth('created_at', $m)->count();
-    }
-    $monthlyJson = json_encode($monthly);
+    // All data prepared in controller: expect variables available.
+    // Fallback for monthlyJson if not provided.
+    $monthlyJson = $monthlyJson ?? json_encode($monthly ?? []);
 @endphp
 
 <div class="dashboard-shell">
     <div class="top-row">
         <div class="welcome-col">
             <h1 style="margin:0; font-size:28px;">Welcome back, {{ explode(' ', Auth::guard('admin')->user()->name)[0] ?? 'Admin' }}!</h1>
-            <p style="margin:4px 0 0;color:#9aa7b7">Your active shipments await. Let's deliver on time.</p>
+            <p style="margin:4px 0 0;color:#9aa7b7" class="mb-3">Your active shipments await. Let's deliver on time.</p>
         </div>
 
         <div class="cards-col">
@@ -340,7 +235,6 @@
                         <tr><th>ID</th><th>Status</th><th>Origin</th><th>Dest.</th><th>ETA</th></tr>
                     </thead>
                     <tbody>
-                        @php $recent = Trip::latest()->take(5)->get(); @endphp
                         @foreach($recent as $r)
                             <tr>
                                 <td>{{ $r->trip_number ?? '#'. $r->id }}</td>

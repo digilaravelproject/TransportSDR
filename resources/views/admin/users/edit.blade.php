@@ -17,7 +17,7 @@
 </div>
 
 <div class="row">
-    <div class="col-md-8">
+    <div class="col-md-12 extra">
         <div class="card">
             <div class="card-body">
                 <form method="POST" action="{{ route('admin.users.update', $user->id) }}">
@@ -75,7 +75,7 @@
                         <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">
                             Cancel
                         </a>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-secondary">
                             <i class="fas fa-save me-2"></i>
                             Update User
                         </button>

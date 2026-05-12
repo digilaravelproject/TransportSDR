@@ -25,9 +25,7 @@ class TripResource extends JsonResource
             
             'vehicle_type_details' => $this->vehicleTypeDetails,
 
-            'number_of_vehicles' => !empty($this->assigned_vehicles)
-                ? count($this->assigned_vehicles)
-                : 0,
+            'number_of_vehicles' => $this->number_of_vehicles,
 
             // 'vehicle' => $this->vehicle ? new VehicleResource($this->vehicle) : null,
             'vehicles' => $this->assigned_vehicles ? VehicleResource::collection(Vehicle::whereIn('id', $this->assigned_vehicles)->get()) : null,

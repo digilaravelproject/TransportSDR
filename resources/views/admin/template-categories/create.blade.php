@@ -13,7 +13,7 @@
     </div>
 
     <div class="row">
-        <div class="col-md-8">
+        <div class="col-md-12 extra">
             <div class="card">
                 <div class="card-body">
                     <form action="{{ route('admin.template-categories.store') }}" method="POST">
@@ -87,7 +87,7 @@
                             <a href="{{ route('admin.template-categories.index') }}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left me-1"></i>Back
                             </a>
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="btn btn-secondary">
                                 <i class="fas fa-save me-1"></i>Create Category
                             </button>
                         </div>
