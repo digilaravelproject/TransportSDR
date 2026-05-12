@@ -67,10 +67,15 @@ Route::middleware(['auth:sanctum', 'tenant'])
 
         // MODULE 1 — Trip Management
         Route::apiResource('trips', Api\TripController::class);
+        // Trip-specific lists (vehicle/driver) similar to Lead module
+        Route::get('trips/vehicles/list', [Api\TripController::class, 'vehicleList']);
+        Route::get('trips/drivers/list', [Api\TripController::class, 'driverList']);
         Route::prefix('trips/{trip}')->group(function () {
             Route::patch('km',        [Api\TripController::class, 'updateKm']);
             Route::patch('status',    [Api\TripController::class, 'updateStatus']);
             Route::post('payment',    [Api\TripController::class, 'addPayment']);
+            Route::post('assign-vehicles', [Api\TripController::class, 'assignVehicles']);
+            Route::post('assign-drivers', [Api\TripController::class, 'assignDrivers']);
             Route::get('invoice',     [Api\TripController::class, 'invoice']);
             Route::get('duty-slip',   [Api\TripController::class, 'dutySlip']);
         });

@@ -3,6 +3,10 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Http\Resources\VehicleResource;
+use App\Http\Resources\StaffResource;
+use App\Models\Vehicle;
+use App\Models\Staff;
 
 class TripResource extends JsonResource
 {
@@ -20,10 +24,13 @@ class TripResource extends JsonResource
             'status'       => $this->status,
             
             'vehicle_type_details' => $this->vehicleTypeDetails,
-            
-            'number_of_vehicles' => $this->number_of_vehicles,
-            
-            'vehicle' => $this->vehicle,
+
+            'number_of_vehicles' => !empty($this->assigned_vehicles)
+                ? count($this->assigned_vehicles)
+                : 0,
+
+            // 'vehicle' => $this->vehicle ? new VehicleResource($this->vehicle) : null,
+            'vehicles' => $this->assigned_vehicles ? VehicleResource::collection(Vehicle::whereIn('id', $this->assigned_vehicles)->get()) : null,
 
             
             'customer' => [
@@ -36,6 +43,7 @@ class TripResource extends JsonResource
                 'name'  => $this->driver->name,
                 'phone' => $this->driver->phone,
             ] : null,
+            'drivers' => $this->assigned_drivers ? StaffResource::collection(Staff::whereIn('id', $this->assigned_drivers)->get()) : null,
             // 'helper' => $this->helper ? [
             //     'id'    => $this->helper->id,
             //     'name'  => $this->helper->name,

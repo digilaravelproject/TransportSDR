@@ -20,6 +20,8 @@ class Trip extends Model
         'trip_route',
         'pickup_address',
         'destination_points',
+        'assigned_vehicles',
+        'assigned_drivers',
         'vehicle_id',
         'vehicle_type',
         'seating_capacity',
@@ -53,6 +55,8 @@ class Trip extends Model
         'trip_date'          => 'date',
         'return_date'        => 'date',
         'destination_points' => 'array',
+        'assigned_vehicles' => 'array',
+        'assigned_drivers' => 'array',
         'is_gst'             => 'boolean',
         'vehicle_type'       => 'integer',
     ];

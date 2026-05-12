@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Trip\{StoreTripRequest, UpdateTripRequest, AddPaymentRequest};
 use App\Http\Resources\TripResource;
 use App\Models\Trip;
+use App\Models\Vehicle;
+use App\Models\Staff;
 use App\Services\TripService;
 use App\Services\Notification\NotificationService;
 use Illuminate\Http\Request;
@@ -14,6 +16,35 @@ use Exception;
 class TripController extends Controller
 {
     public function __construct(private TripService $service, private NotificationService $notificationService) {}
+
+    // GET /api/v1/trips/vehicles/list
+    public function vehicleList()
+    {
+        $vehicles = Vehicle::select('id','registration_number','type','seating_capacity','is_available')->get()
+            ->map(fn($v) => [
+                'id' => $v->id,
+                'registration_number' => $v->registration_number,
+                'type' => $v->type,
+                'seating_capacity' => $v->seating_capacity,
+                'status' => $v->is_available ? 'available' : 'on_trip'
+            ]);
+
+        return response()->json(['success' => true, 'data' => $vehicles]);
+    }
+
+    // GET /api/v1/trips/drivers/list
+    public function driverList()
+    {
+        $drivers = Staff::drivers()->select('id','name','phone','is_available')->get()
+            ->map(fn($d) => [
+                'id' => $d->id,
+                'name' => $d->name,
+                'phone' => $d->phone,
+                'status' => $d->is_available ? 'available' : 'on_trip'
+            ]);
+
+        return response()->json(['success' => true, 'data' => $drivers]);
+    }
 
     public function index_old(Request $request)
     {
@@ -414,6 +445,70 @@ class TripController extends Controller
                 'line'    => $e->getLine(),
                 'file'    => $e->getFile(),
             ], 500);
+        }
+    }
+
+    // POST /api/v1/trips/{trip}/assign-vehicles
+    public function assignVehicles(Request $request, Trip $trip)
+    {
+        $this->checkRole(['superadmin', 'admin', 'operator']);
+
+        $data = $request->validate([
+            'vehicle_ids' => 'required|array|min:1',
+            'vehicle_ids.*' => 'integer|exists:vehicles,id',
+        ]);
+
+        $ids = array_values(array_unique($data['vehicle_ids']));
+
+        try {
+            // Release previously assigned vehicles that are not in new list
+            if (!empty($trip->assigned_vehicles) && is_array($trip->assigned_vehicles)) {
+                $toRelease = array_diff($trip->assigned_vehicles, $ids);
+                if (!empty($toRelease)) Vehicle::whereIn('id', $toRelease)->update(['is_available' => true]);
+            }
+
+            // Mark new vehicles as not available
+            Vehicle::whereIn('id', $ids)->update(['is_available' => false]);
+
+            $trip->assigned_vehicles = $ids;
+            $trip->save();
+
+            try { $this->notificationService->create('Vehicles Assigned', "Vehicles assigned to {$trip->trip_number}", ['trip_id' => $trip->id], 'assign', 'medium'); } catch (\Throwable $e) {}
+
+            return response()->json(['success' => true, 'message' => 'Vehicles assigned.', 'data' => new TripResource($trip->fresh())]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to assign vehicles.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    // POST /api/v1/trips/{trip}/assign-drivers
+    public function assignDrivers(Request $request, Trip $trip)
+    {
+        $this->checkRole(['superadmin', 'admin', 'operator']);
+
+        $data = $request->validate([
+            'driver_ids' => 'required|array|min:1',
+            'driver_ids.*' => 'integer|exists:staff,id',
+        ]);
+
+        $ids = array_values(array_unique($data['driver_ids']));
+
+        try {
+            if (!empty($trip->assigned_drivers) && is_array($trip->assigned_drivers)) {
+                $toRelease = array_diff($trip->assigned_drivers, $ids);
+                if (!empty($toRelease)) Staff::whereIn('id', $toRelease)->update(['is_available' => true]);
+            }
+
+            Staff::whereIn('id', $ids)->update(['is_available' => false]);
+
+            $trip->assigned_drivers = $ids;
+            $trip->save();
+
+            try { $this->notificationService->create('Drivers Assigned', "Drivers assigned to {$trip->trip_number}", ['trip_id' => $trip->id], 'assign', 'medium'); } catch (\Throwable $e) {}
+
+            return response()->json(['success' => true, 'message' => 'Drivers assigned.', 'data' => new TripResource($trip->fresh())]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to assign drivers.', 'error' => $e->getMessage()], 500);
         }
     }
 
