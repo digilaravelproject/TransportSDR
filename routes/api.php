@@ -82,6 +82,8 @@ Route::middleware(['auth:sanctum', 'tenant'])
             Route::post('duty-sheets', [Api\TripController::class, 'uploadDutySheet']);
             Route::get('invoice',     [Api\TripController::class, 'invoice']);
             Route::get('duty-slip',   [Api\TripController::class, 'dutySlip']);
+            Route::post('remove-vehicles', [Api\TripController::class, 'removeVehicles']);
+            Route::post('remove-drivers', [Api\TripController::class, 'removeDrivers']);
         });
 
         // Dropdowns for trip form

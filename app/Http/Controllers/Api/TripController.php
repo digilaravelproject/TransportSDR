@@ -541,21 +541,20 @@ class TripController extends Controller
         $ids = array_values(array_unique($data['vehicle_ids']));
 
         try {
-            // Release previously assigned vehicles that are not in new list
-            if (!empty($trip->assigned_vehicles) && is_array($trip->assigned_vehicles)) {
-                $toRelease = array_diff($trip->assigned_vehicles, $ids);
-                if (!empty($toRelease)) Vehicle::whereIn('id', $toRelease)->update(['is_available' => true]);
+            $existing = is_array($trip->assigned_vehicles) ? $trip->assigned_vehicles : [];
+
+            // Vehicles to newly assign (do not remove existing ones)
+            $toAssign = array_values(array_diff($ids, $existing));
+
+            if (!empty($toAssign)) {
+                Vehicle::whereIn('id', $toAssign)->update(['is_available' => false]);
+                $trip->assigned_vehicles = array_values(array_unique(array_merge($existing, $toAssign)));
+                $trip->save();
             }
-
-            // Mark new vehicles as not available
-            Vehicle::whereIn('id', $ids)->update(['is_available' => false]);
-
-            $trip->assigned_vehicles = $ids;
-            $trip->save();
 
             try { $this->notificationService->create('Vehicles Assigned', "Vehicles assigned to {$trip->trip_number}", ['trip_id' => $trip->id], 'assign', 'medium'); } catch (\Throwable $e) {}
 
-            return response()->json(['success' => true, 'message' => 'Vehicles assigned.', 'data' => new TripResource($trip->fresh())]);
+            return response()->json(['success' => true, 'message' => 'Vehicles assigned (merged).', 'data' => new TripResource($trip->fresh())]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Failed to assign vehicles.', 'error' => $e->getMessage()], 500);
         }
@@ -574,21 +573,92 @@ class TripController extends Controller
         $ids = array_values(array_unique($data['driver_ids']));
 
         try {
-            if (!empty($trip->assigned_drivers) && is_array($trip->assigned_drivers)) {
-                $toRelease = array_diff($trip->assigned_drivers, $ids);
-                if (!empty($toRelease)) Staff::whereIn('id', $toRelease)->update(['is_available' => true]);
+            $existing = is_array($trip->assigned_drivers) ? $trip->assigned_drivers : [];
+
+            // Drivers to newly assign (merge, do not remove existing)
+            $toAssign = array_values(array_diff($ids, $existing));
+
+            if (!empty($toAssign)) {
+                Staff::whereIn('id', $toAssign)->update(['is_available' => false]);
+                $trip->assigned_drivers = array_values(array_unique(array_merge($existing, $toAssign)));
+                $trip->save();
             }
-
-            Staff::whereIn('id', $ids)->update(['is_available' => false]);
-
-            $trip->assigned_drivers = $ids;
-            $trip->save();
 
             try { $this->notificationService->create('Drivers Assigned', "Drivers assigned to {$trip->trip_number}", ['trip_id' => $trip->id], 'assign', 'medium'); } catch (\Throwable $e) {}
 
-            return response()->json(['success' => true, 'message' => 'Drivers assigned.', 'data' => new TripResource($trip->fresh())]);
+            return response()->json(['success' => true, 'message' => 'Drivers assigned (merged).', 'data' => new TripResource($trip->fresh())]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Failed to assign drivers.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    // POST /api/v1/trips/{trip}/remove-vehicles
+    public function removeVehicles(Request $request, Trip $trip)
+    {
+        $this->checkRole(['superadmin', 'admin', 'operator']);
+
+        $data = $request->validate([
+            'vehicle_ids' => 'required|array|min:1',
+            'vehicle_ids.*' => 'integer|exists:vehicles,id',
+        ]);
+
+        $ids = array_values(array_unique($data['vehicle_ids']));
+
+        try {
+            $existing = is_array($trip->assigned_vehicles) ? $trip->assigned_vehicles : [];
+            $toRemove = array_values(array_intersect($existing, $ids));
+
+            if (empty($toRemove)) {
+                return response()->json(['success' => false, 'message' => 'No matching assigned vehicles found to remove.'], 422);
+            }
+
+            // Mark removed vehicles available
+            Vehicle::whereIn('id', $toRemove)->update(['is_available' => true]);
+
+            // Update trip assigned list
+            $trip->assigned_vehicles = array_values(array_diff($existing, $toRemove));
+            $trip->save();
+
+            try { $this->notificationService->create('Vehicles Removed', "Vehicles removed from {$trip->trip_number}", ['trip_id' => $trip->id], 'assign', 'medium'); } catch (\Throwable $e) {}
+
+            return response()->json(['success' => true, 'message' => 'Vehicles removed.', 'data' => new TripResource($trip->fresh())]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to remove vehicles.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    // POST /api/v1/trips/{trip}/remove-drivers
+    public function removeDrivers(Request $request, Trip $trip)
+    {
+        $this->checkRole(['superadmin', 'admin', 'operator']);
+
+        $data = $request->validate([
+            'driver_ids' => 'required|array|min:1',
+            'driver_ids.*' => 'integer|exists:staff,id',
+        ]);
+
+        $ids = array_values(array_unique($data['driver_ids']));
+
+        try {
+            $existing = is_array($trip->assigned_drivers) ? $trip->assigned_drivers : [];
+            $toRemove = array_values(array_intersect($existing, $ids));
+
+            if (empty($toRemove)) {
+                return response()->json(['success' => false, 'message' => 'No matching assigned drivers found to remove.'], 422);
+            }
+
+            // Mark removed drivers available
+            Staff::whereIn('id', $toRemove)->update(['is_available' => true]);
+
+            // Update trip assigned drivers
+            $trip->assigned_drivers = array_values(array_diff($existing, $toRemove));
+            $trip->save();
+
+            try { $this->notificationService->create('Drivers Removed', "Drivers removed from {$trip->trip_number}", ['trip_id' => $trip->id], 'assign', 'medium'); } catch (\Throwable $e) {}
+
+            return response()->json(['success' => true, 'message' => 'Drivers removed.', 'data' => new TripResource($trip->fresh())]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to remove drivers.', 'error' => $e->getMessage()], 500);
         }
     }
 

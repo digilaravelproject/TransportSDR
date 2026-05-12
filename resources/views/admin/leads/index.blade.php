@@ -88,7 +88,7 @@
                                         <td>
                                             <div class="d-flex gap-2">
                                                 <a href="{{ route('admin.leads.show', $lead) }}" class="btn btn-sm" style="background: rgba(14, 165, 233, 0.1); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.2); border-radius: 6px;" title="View Details">
-                                                    <i class="fas fa-eye"></i> View
+                                                    <i class="fas fa-eye"></i>
                                                 </a>
                                                 <form method="POST" action="{{ route('admin.leads.destroy', $lead) }}" class="d-inline">
                                                     @csrf

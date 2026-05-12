@@ -286,23 +286,14 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ Route::currentRouteName() == 'admin.plans.index' ? 'active' : '' }}"
-                            href="{{ route('admin.plans.index') }}">
-                            <i class="fas fa-gem me-2"></i> Plans
+                        <a class="nav-link {{ str_contains(Route::currentRouteName(), 'admin.staff') ? 'active' : '' }}"
+                            href="{{ route('admin.staff.index') }}">
+                            <i class="fas fa-users me-2"></i> Staff
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ Route::currentRouteName() == 'admin.subscriptions.index' ? 'active' : '' }}"
-                            href="{{ route('admin.subscriptions.index') }}">
-                            <i class="fas fa-credit-card me-2"></i> Subscriptions
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ Route::currentRouteName() == 'admin.shifts.index' ? 'active' : '' }}"
-                            href="{{ route('admin.shifts.index') }}">
-                            <i class="fas fa-business-time me-2"></i> Shifts
-                        </a>
-                    </li>
+                    <div class="px-4 mt-4 mb-2 small text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">
+                        Vehicles</div>
+
                     <li class="nav-item">
                         <a class="nav-link {{ str_contains(Route::currentRouteName(), 'admin.vehicles') ? 'active' : '' }}"
                             href="{{ route('admin.vehicles.index') }}">
@@ -313,6 +304,13 @@
                         <a class="nav-link {{ str_contains(Route::currentRouteName(), 'admin.vehicle-types') ? 'active' : '' }}"
                             href="{{ route('admin.vehicle-types.index') }}">
                             <i class="fas fa-car-side me-2"></i> Vehicle Types
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link {{ Route::currentRouteName() == 'admin.shifts.index' ? 'active' : '' }}"
+                            href="{{ route('admin.shifts.index') }}">
+                            <i class="fas fa-business-time me-2"></i> Shifts
                         </a>
                     </li>
                     <li class="nav-item">
@@ -342,12 +340,6 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains(Route::currentRouteName(), 'admin.staff') ? 'active' : '' }}"
-                            href="{{ route('admin.staff.index') }}">
-                            <i class="fas fa-users me-2"></i> Staff
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link {{ str_contains(Route::currentRouteName(), 'admin.routes') ? 'active' : '' }}"
                             href="{{ route('admin.routes.index') }}">
                             <i class="fas fa-map-marked-alt me-2"></i> Routes
@@ -365,6 +357,23 @@
                             <i class="fas fa-route me-2"></i> Trips
                         </a>
                     </li>
+
+                    <div class="px-4 mt-4 mb-2 small text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">
+                        Payments</div>
+
+                    <li class="nav-item">
+                        <a class="nav-link {{ Route::currentRouteName() == 'admin.plans.index' ? 'active' : '' }}"
+                            href="{{ route('admin.plans.index') }}">
+                            <i class="fas fa-gem me-2"></i> Plans
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ Route::currentRouteName() == 'admin.subscriptions.index' ? 'active' : '' }}"
+                            href="{{ route('admin.subscriptions.index') }}">
+                            <i class="fas fa-credit-card me-2"></i> Subscriptions
+                        </a>
+                    </li>
+
                     <li class="nav-item mt-4 px-3">
                         <form method="POST" action="{{ route('admin.logout') }}">
                             @csrf
@@ -397,14 +406,23 @@
     <script>
         // Initialize any table with class .datatable automatically
         $(document).ready(function(){
+            // Prevent DataTables from showing alert popups on structural errors
+            if ($.fn && $.fn.dataTable && $.fn.dataTable.ext) {
+                $.fn.dataTable.ext.errMode = 'none';
+            }
+
             $('.datatable').each(function(){
-                if (!$.fn.DataTable.isDataTable(this)) {
-                    $(this).DataTable({
-                        pageLength: 10,
-                        lengthChange: true,
-                        lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
-                        responsive: true
-                    });
+                try {
+                    if (!$.fn.DataTable.isDataTable(this)) {
+                        $(this).DataTable({
+                            pageLength: 10,
+                            lengthChange: true,
+                            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+                            responsive: true
+                        });
+                    }
+                } catch (e) {
+                    console.warn('DataTable init failed for a table:', e);
                 }
             });
         });

@@ -95,7 +95,10 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="4" class="text-center text-muted py-3">No payments recorded.</td>
+                                <td class="text-center text-muted py-3">No payments recorded.</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
                             </tr>
                             @endforelse
                         </tbody>
