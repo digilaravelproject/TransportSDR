@@ -7,7 +7,7 @@
     <div class="top-row mb-4">
         <div class="welcome-col">
             <h1 class="fw-bold text-white mb-2">Manage Trips</h1>
-            <p class="text-muted mb-0">Overview of all active, scheduled, and completed trips.</p>
+            <p class="text-muted mb-3">Overview of all active, scheduled, and completed trips.</p>
         </div>
         <div class="cards-col">
              <div class="stat-card">

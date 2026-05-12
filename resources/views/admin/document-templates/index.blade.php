@@ -6,7 +6,7 @@
     <div class="top-row mb-4">
         <div class="welcome-col">
             <h1 class="fw-bold text-white mb-2">Document Templates</h1>
-            <p class="text-muted mb-0">Manage document templates and previews.</p>
+            <p class="text-muted mb-3">Manage document templates and previews.</p>
         </div>
         <div class="cards-col">
              <div class="stat-card">

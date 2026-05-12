@@ -7,7 +7,7 @@
     <div class="top-row mb-4">
         <div class="welcome-col">
             <h1 class="fw-bold text-white mb-2">Vehicle Types</h1>
-            <p class="text-muted mb-0">Manage vehicle types used by the platform.</p>
+            <p class="text-muted mb-3">Manage vehicle types used by the platform.</p>
         </div>
         <div class="cards-col">
              <div class="stat-card">

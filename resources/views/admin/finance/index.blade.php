@@ -7,7 +7,7 @@
     <div class="top-row mb-4">
         <div class="welcome-col">
             <h1 class="fw-bold text-white mb-2">Finance Cashbook</h1>
-            <p class="text-muted mb-0">Track all financial entries and transactions.</p>
+            <p class="text-muted mb-3">Track all financial entries and transactions.</p>
         </div>
         <div class="cards-col">
              <div class="stat-card">

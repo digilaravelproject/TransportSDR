@@ -6,7 +6,7 @@
     <div class="top-row mb-4">
         <div class="welcome-col">
             <h1 class="fw-bold text-white mb-2">Template Categories</h1>
-            <p class="text-muted mb-0">Manage document template categories.</p>
+            <p class="text-muted mb-3">Manage document template categories.</p>
         </div>
         <div class="cards-col">
              <div class="stat-card">

@@ -28,7 +28,7 @@
                     </div>
                 </div>
             </div>
-            <div class="stat-card text-center">
+            <!-- <div class="stat-card text-center">
                 <div class="stat-pill">
                     <div style="width:36px;height:36px;border-radius:8px;background:#111827;display:flex;align-items:center;justify-content:center;color:#60a5fa">🚚</div>
                     <div style="text-align:left">
@@ -36,8 +36,8 @@
                         <div class="value">{{ number_format($delivered) }}</div>
                     </div>
                 </div>
-            </div>
-            <div class="stat-card text-center">
+            </div> -->
+            <!-- <div class="stat-card text-center">
                 <div class="stat-pill">
                     <div style="width:36px;height:36px;border-radius:8px;background:#111827;display:flex;align-items:center;justify-content:center;color:#7c3aed">📍</div>
                     <div style="text-align:left">
@@ -45,7 +45,7 @@
                         <div class="value">{{ number_format($activeTracking) }}</div>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
             <!-- Vehicles -->
             <div class="stat-card text-center">
@@ -57,7 +57,7 @@
                     </div>
                 </div>
             </div>
-            <div class="stat-card text-center">
+            <!-- <div class="stat-card text-center">
                 <div class="stat-pill">
                     <div style="width:36px;height:36px;border-radius:8px;background:#111827;display:flex;align-items:center;justify-content:center;color:#10b981">✓</div>
                     <div style="text-align:left">
@@ -74,7 +74,7 @@
                         <div class="value">{{ number_format($vehicleInMaintenance) }}</div>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
             <!-- Staff -->
             <div class="stat-card text-center">
@@ -86,7 +86,7 @@
                     </div>
                 </div>
             </div>
-            <div class="stat-card text-center">
+            <!-- <div class="stat-card text-center">
                 <div class="stat-pill">
                     <div style="width:36px;height:36px;border-radius:8px;background:#111827;display:flex;align-items:center;justify-content:center;color:#14b8a6">✔</div>
                     <div style="text-align:left">
@@ -103,7 +103,7 @@
                         <div class="value">{{ number_format($staffOnLeave) }}</div>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
             <!-- Leads -->
             <div class="stat-card text-center">
@@ -115,47 +115,18 @@
                     </div>
                 </div>
             </div>
-            <div class="stat-card text-center">
-                <div class="stat-pill">
-                    <div style="width:36px;height:36px;border-radius:8px;background:#111827;display:flex;align-items:center;justify-content:center;color:#06b6d4">⭐</div>
-                    <div style="text-align:left">
-                        <div class="label">Qualified</div>
-                        <div class="value">{{ number_format($qualifiedLeads) }}</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Customers -->
-            <div class="stat-card text-center">
-                <div class="stat-pill">
-                    <div style="width:36px;height:36px;border-radius:8px;background:#111827;display:flex;align-items:center;justify-content:center;color:#ec4899">👤</div>
-                    <div style="text-align:left">
-                        <div class="label">Customers</div>
-                        <div class="value">{{ number_format($totalCustomers) }}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="stat-card text-center">
-                <div class="stat-pill">
-                    <div style="width:36px;height:36px;border-radius:8px;background:#111827;display:flex;align-items:center;justify-content:center;color:#a78bfa">🔄</div>
-                    <div style="text-align:left">
-                        <div class="label">Active</div>
-                        <div class="value">{{ number_format($activeCustomers) }}</div>
-                    </div>
-                </div>
-            </div>
 
             <!-- Payments -->
             <div class="stat-card text-center">
                 <div class="stat-pill">
                     <div style="width:36px;height:36px;border-radius:8px;background:#111827;display:flex;align-items:center;justify-content:center;color:#34d399">💳</div>
                     <div style="text-align:left">
-                        <div class="label">Payments</div>
-                        <div class="value">{{ number_format($totalPayments) }}</div>
+                        <div class="label">Shifts</div>
+                        <div class="value">{{ number_format($totalShifts) }}</div>
                     </div>
                 </div>
             </div>
-            <div class="stat-card text-center">
+            <!-- <div class="stat-card text-center">
                 <div class="stat-pill">
                     <div style="width:36px;height:36px;border-radius:8px;background:#111827;display:flex;align-items:center;justify-content:center;color:#4ade80">✓</div>
                     <div style="text-align:left">
@@ -172,7 +143,7 @@
                         <div class="value">{{ number_format($pendingPayments) }}</div>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
             <!-- Inventory -->
             <div class="stat-card text-center">
@@ -184,7 +155,7 @@
                     </div>
                 </div>
             </div>
-            <div class="stat-card text-center">
+            <!-- <div class="stat-card text-center">
                 <div class="stat-pill">
                     <div style="width:36px;height:36px;border-radius:8px;background:#111827;display:flex;align-items:center;justify-content:center;color:#fbbf24">⚠️</div>
                     <div style="text-align:left">
@@ -192,19 +163,19 @@
                         <div class="value">{{ number_format($lowStockItems) }}</div>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
             <!-- Shifts -->
             <div class="stat-card text-center">
                 <div class="stat-pill">
                     <div style="width:36px;height:36px;border-radius:8px;background:#111827;display:flex;align-items:center;justify-content:center;color:#fbbf24">⏰</div>
                     <div style="text-align:left">
-                        <div class="label">Shifts</div>
-                        <div class="value">{{ number_format($totalShifts) }}</div>
+                        <div class="label">Payments</div>
+                        <div class="value">{{ number_format($totalPayments) }}</div>
                     </div>
                 </div>
             </div>
-            <div class="stat-card text-center">
+            <!-- <div class="stat-card text-center">
                 <div class="stat-pill">
                     <div style="width:36px;height:36px;border-radius:8px;background:#111827;display:flex;align-items:center;justify-content:center;color:#60a5fa">▶</div>
                     <div style="text-align:left">
@@ -212,7 +183,7 @@
                         <div class="value">{{ number_format($activeShifts) }}</div>
                     </div>
                 </div>
-            </div>
+            </div> -->
         </div>
     </div>
 

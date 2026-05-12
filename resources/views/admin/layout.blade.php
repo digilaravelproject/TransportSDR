@@ -400,8 +400,9 @@
             $('.datatable').each(function(){
                 if (!$.fn.DataTable.isDataTable(this)) {
                     $(this).DataTable({
-                        pageLength: 20,
-                        lengthChange: false,
+                        pageLength: 10,
+                        lengthChange: true,
+                        lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
                         responsive: true
                     });
                 }

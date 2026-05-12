@@ -7,7 +7,7 @@
     <div class="top-row mb-4">
         <div class="welcome-col">
             <h1 class="fw-bold text-white mb-2">Manage Subscriptions</h1>
-            <p class="text-muted mb-0">View and manage customer subscriptions.</p>
+            <p class="text-muted mb-3">View and manage customer subscriptions.</p>
         </div>
         <div class="cards-col">
             <div class="stat-card">

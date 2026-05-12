@@ -7,7 +7,7 @@
     <div class="top-row mb-4">
         <div class="welcome-col">
             <h1 class="fw-bold text-white mb-2">Manage Shifts</h1>
-            <p class="text-muted mb-0">Create and manage work shifts.</p>
+            <p class="text-muted mb-3">Create and manage work shifts.</p>
         </div>
         <div class="cards-col" style="flex: 3; display: flex; gap: 16px; flex-wrap: wrap;">
             <div class="stat-card" style="flex: 1; min-width: 140px;">

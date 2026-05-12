@@ -7,7 +7,7 @@
     <div class="top-row mb-4">
         <div class="welcome-col">
             <h1 class="fw-bold text-white mb-2">Inventory Management</h1>
-            <p class="text-muted mb-0">Track and manage inventory stock and assets.</p>
+            <p class="text-muted mb-3">Track and manage inventory stock and assets.</p>
         </div>
         <div class="cards-col">
              <div class="stat-card">
