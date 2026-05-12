@@ -438,7 +438,8 @@ class LeadController extends Controller
                 'duration_days' => $lead->duration_days ?? 1,
                 'trip_route' => $lead->trip_route,
                 'pickup_address' => $lead->pickup_address,
-                'destination_points' => $lead->points ? array_map(fn($p) => $p['name'] ?? $p, $lead->points) : [],
+                // preserve full lead points objects when converting to trip
+                'destination_points' => $lead->points ? $lead->points : [],
                 'vehicle_id' => $data['vehicle_id'] ?? $lead->vehicle_id ?? null,
                 'vehicle_type' => $lead->vehicleTypeDetails?->name ?? (string)($lead->vehicle_type ?? ''),
                 'seating_capacity' => $lead->seating_capacity ?? 1,

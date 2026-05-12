@@ -18,8 +18,17 @@ class StoreTripRequest extends FormRequest
             'duration_days'        => 'required|integer|min:1',
             'trip_route'           => 'required|string|max:255',
             'pickup_address'       => 'required|string',
-            'destination_points'   => 'required|array|min:1',
-            'destination_points.*' => 'required|string|max:255',
+            // Accept either 'destination_points' (array of names) or
+            // 'points' (lead-style array of objects with details). Prefer
+            // 'points' for parity with leads API.
+            'destination_points'   => 'sometimes|array|min:1',
+            'destination_points.*' => 'sometimes|string|max:255',
+            'points'                => 'sometimes|array|min:1',
+            'points.*.type'         => 'required_with:points|string',
+            'points.*.name'         => 'required_with:points|string',
+            'points.*.lat'          => 'required_with:points|numeric',
+            'points.*.lng'          => 'required_with:points|numeric',
+            'points.*.order'        => 'required_with:points|integer',
             // vehicle_id is not provided on create API; assignment happens later
             'vehicle_type'         => 'required|integer|exists:vehicle_types,id',
             'seating_capacity'     => 'required|integer|min:1',

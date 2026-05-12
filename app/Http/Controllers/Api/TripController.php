@@ -65,7 +65,15 @@ class TripController extends Controller
         $this->checkRole(['superadmin', 'admin', 'operator']);
 
         try {
-            $trip = $this->service->store($request->validated());
+            $data = $request->validated();
+            // If client sent 'points' (lead-style objects), convert to destination names
+            if (!empty($data['points']) && is_array($data['points'])) {
+                // Preserve full point objects (type,name,lat,lng,order)
+                $data['destination_points'] = $data['points'];
+                unset($data['points']);
+            }
+
+            $trip = $this->service->store($data);
             try {
                 $this->notificationService->create('New Trip: ' . $trip->customer_name, "Trip {$trip->trip_number} created", ['trip_id' => $trip->id], 'trip', 'high');
             } catch (\Throwable $e) {}
@@ -119,7 +127,14 @@ class TripController extends Controller
         $this->checkRole(['superadmin', 'admin', 'operator']);
 
         try {
-            $trip = $this->service->update($trip, $request->validated());
+            $data = $request->validated();
+            if (!empty($data['points']) && is_array($data['points'])) {
+                // Preserve full point objects on update as well
+                $data['destination_points'] = $data['points'];
+                unset($data['points']);
+            }
+
+            $trip = $this->service->update($trip, $data);
 
             return response()->json([
                 'success' => true,
