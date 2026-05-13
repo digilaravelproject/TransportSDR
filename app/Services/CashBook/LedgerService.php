@@ -5,6 +5,7 @@ namespace App\Services\CashBook;
 use App\Models\CashBookEntry;
 use Illuminate\Support\Facades\{DB, File};
 use Carbon\Carbon;
+use App\Support\FileSanitizer;
 
 class LedgerService
 {
@@ -155,6 +156,7 @@ class LedgerService
         }
 
         $fileName = "receipt-{$entry->id}-" . time() . '.' . $file->extension();
+        $fileName = FileSanitizer::sanitize($fileName);
         $path     = "tenants/{$tenantId}/receipts/{$fileName}";
         $file->storeAs("public/tenants/{$tenantId}/receipts", $fileName);
 

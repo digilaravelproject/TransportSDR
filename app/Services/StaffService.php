@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\{Staff, StaffAttendance, StaffSalary, StaffAdvance, StaffDaLog, Trip, StaffDocument};
 use Illuminate\Support\Facades\{DB, File, Storage};
 use Carbon\Carbon;
+use App\Support\FileSanitizer;
 
 class StaffService
 {
@@ -184,6 +185,7 @@ class StaffService
     public function uploadDocument(Staff $staff, array $data, $file): \App\Models\StaffDocument
     {
         $fileName = "staff-{$staff->id}-{$data['document_type']}-" . time() . '.' . $file->extension();
+        $fileName = FileSanitizer::sanitize($fileName);
         $dir      = "tenants/{$staff->tenant_id}/staff-docs/{$staff->id}";
         $path     = $file->storeAs($dir, $fileName, 'public');
 
@@ -242,6 +244,7 @@ class StaffService
     private function saveDocumentRecord(Staff $staff, string $type, ?string $number, ?string $expiry, $file)
     {
         $fileName = "staff-{$staff->id}-{$type}-" . time() . '.' . $file->extension();
+        $fileName = FileSanitizer::sanitize($fileName);
         $dir      = "tenants/{$staff->tenant_id}/staff-docs/{$staff->id}";
         $path     = $file->storeAs($dir, $fileName, 'public');
 
@@ -316,6 +319,7 @@ class StaffService
 
         // store new file
         $fileName = "staff-{$staff->id}-{$type}-" . time() . '.' . $file->extension();
+        $fileName = FileSanitizer::sanitize($fileName);
         $dir      = "tenants/{$staff->tenant_id}/staff-docs/{$staff->id}";
         $path     = $file->storeAs($dir, $fileName, 'public');
 
@@ -334,6 +338,7 @@ class StaffService
     private function saveOrUpdateDocument(Staff $staff, string $type, ?string $number, ?string $expiry, $file)
     {
         $fileName = "staff-{$staff->id}-{$type}-" . time() . '.' . $file->extension();
+        $fileName = FileSanitizer::sanitize($fileName);
         $dir      = "tenants/{$staff->tenant_id}/staff-docs/{$staff->id}";
         $path     = $file->storeAs($dir, $fileName, 'public');
 

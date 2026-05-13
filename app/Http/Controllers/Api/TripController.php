@@ -13,6 +13,7 @@ use App\Models\RoleModule;
 use App\Models\TripDutySheet;
 use App\Services\TripService;
 use App\Services\Notification\NotificationService;
+use App\Support\FileSanitizer;
 use Illuminate\Http\Request;
 use Exception;
 
@@ -683,9 +684,11 @@ class TripController extends Controller
         $path = null;
         if ($request->hasFile('receipt')) {
             $file = $request->file('receipt');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $fileName = FileSanitizer::sanitize($fileName);
             $path = $file->storePubliclyAs(
                 "tenants/" . (auth()->user()->tenant_id ?? '0') . "/trips/{$trip->id}/receipts",
-                time() . '_' . $file->getClientOriginalName(),
+                $fileName,
                 'public'
             );
         }
@@ -723,6 +726,7 @@ class TripController extends Controller
 
         $file = $request->file('file');
         $fileName = time() . '_' . $file->getClientOriginalName();
+        $fileName = FileSanitizer::sanitize($fileName);
         $path = $file->storePubliclyAs(
             "tenants/" . (auth()->user()->tenant_id ?? '0') . "/trips/{$trip->id}/duty_sheets",
             $fileName,

@@ -527,6 +527,7 @@ class AuthController extends Controller
 
                     $file     = $request->file('logo');
                     $fileName = 'logo-' . $tenant->id . '-' . now()->format('YmdHis') . '.' . $file->extension();
+                    $fileName = \App\Support\FileSanitizer::sanitize($fileName);
                     $stored   = $file->storeAs('tenants/logos', $fileName, 'public');
 
                     $tenantUpdate['logo_path'] = $stored;

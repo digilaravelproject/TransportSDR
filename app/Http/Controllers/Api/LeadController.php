@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\{Lead, LeadNote, LeadFollowUp, LeadExpense, LeadDutySheet, Vehicle, Staff};
 use App\Services\Template\TemplateService;
 use Illuminate\Http\Request;
+use App\Support\FileSanitizer;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -503,9 +504,11 @@ class LeadController extends Controller
         $path = null;
         if ($request->hasFile('receipt')) {
             $file = $request->file('receipt');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $fileName = FileSanitizer::sanitize($fileName);
             $path = $file->storePubliclyAs(
                 "tenants/" . (auth()->user()->tenant_id ?? '0') . "/leads/{$lead->id}/receipts",
-                time() . '_' . $file->getClientOriginalName(),
+                $fileName,
                 'public'
             );
         }
@@ -544,6 +547,7 @@ class LeadController extends Controller
 
         $file = $request->file('file');
         $fileName = time() . '_' . $file->getClientOriginalName();
+        $fileName = FileSanitizer::sanitize($fileName);
         $path = $file->storePubliclyAs(
             "tenants/" . (auth()->user()->tenant_id ?? '0') . "/leads/{$lead->id}/duty_sheets",
             $fileName,

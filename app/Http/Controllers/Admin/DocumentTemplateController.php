@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\{File, Storage};
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Support\FileSanitizer;
 
 class DocumentTemplateController extends Controller
 {
@@ -55,9 +56,11 @@ class DocumentTemplateController extends Controller
         // Thumbnail upload
         if ($request->hasFile('thumbnail')) {
             $file = $request->file('thumbnail');
+            $fileName = 'thumb-' . time() . '.' . $file->extension();
+            $fileName = FileSanitizer::sanitize($fileName);
             $path = $file->storeAs(
                 'public/template-thumbnails',
-                'thumb-' . time() . '.' . $file->extension()
+                $fileName
             );
             $validated['thumbnail'] = str_replace('public/', '', $path);
         }
@@ -121,9 +124,11 @@ class DocumentTemplateController extends Controller
                 Storage::delete('public/' . $documentTemplate->thumbnail);
             }
             $file = $request->file('thumbnail');
+            $fileName = 'thumb-' . $documentTemplate->id . '-' . time() . '.' . $file->extension();
+            $fileName = FileSanitizer::sanitize($fileName);
             $path = $file->storeAs(
                 'public/template-thumbnails',
-                'thumb-' . $documentTemplate->id . '-' . time() . '.' . $file->extension()
+                $fileName
             );
             $validated['thumbnail'] = str_replace('public/', '', $path);
         }

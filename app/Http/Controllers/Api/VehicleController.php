@@ -76,6 +76,7 @@ class VehicleController extends Controller
                 if ($request->status === 'active') {
                     $query->where('is_active', true);
                 } elseif ($request->status === 'maintenance') {
+            use App\Support\FileSanitizer;
                     $query->whereHas('maintenanceLogs', fn($q) => $q->whereIn('status', ['pending', 'in_progress']));
                 }
             }
@@ -118,20 +119,20 @@ class VehicleController extends Controller
                 'data'    => VehicleResource::collection($vehicles),
                 'meta'    => [
                     'total'        => $vehicles->total(),
-                    'current_page' => $vehicles->currentPage(),
-                    'last_page'    => $vehicles->lastPage(),
-                ],
-            ]);
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'You do not have permission to view vehicles.',
-                'error'   => $e->getMessage(),
-            ], 403);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch vehicles. Please try again.',
+                        if ($request->hasFile('registration_certificate')) {
+                            $file = $request->file('registration_certificate');
+                            $fileName = 'rc-' . time() . '.' . $file->extension();
+                            $fileName = FileSanitizer::sanitize($fileName);
+                            $path = $file->storeAs($directory, $fileName, 'public');
+                            $vehicle->update(['rc_file' => $path]);
+                            VehicleDocument::create([
+                                'tenant_id'     => $vehicle->tenant_id,
+                                'vehicle_id'    => $vehicle->id,
+                                'document_type' => 'rc',
+                                'document_number' => $request->input('rc_number'),
+                                'document_path' => $path,
+                                'expiry_date'   => $request->input('rc_expiry'),
+                            ]);
                 'error'   => $e->getMessage(),
             ], 500);
         }
