@@ -667,7 +667,10 @@ class TripController extends Controller
     public function expenses(Trip $trip)
     {
         $items = TripExpense::where('trip_id', $trip->id)->get();
-        return response()->json(['success' => true, 'data' => $items]);
+        
+        $total_expense = $items->sum('amount');
+        
+        return response()->json(['success' => true, 'total_expense' => $total_expense, 'data' => $items]);
     }
 
     // POST /api/v1/trips/{trip}/expenses
