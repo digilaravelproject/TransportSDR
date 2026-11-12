@@ -7,6 +7,7 @@ use App\Http\Resources\VehicleResource;
 use App\Http\Resources\StaffResource;
 use App\Models\Vehicle;
 use App\Models\Staff;
+use Illuminate\Support\Collection;
 
 class TripResource extends JsonResource
 {
@@ -14,9 +15,10 @@ class TripResource extends JsonResource
     {
         // Newer trips keep all assigned vehicle IDs in assigned_vehicles, while
         // older/single-vehicle trips may only have vehicle_id populated.
-        $vehicleIds = collect($this->assigned_vehicles ?? [])
+        $vehicleIds = $this->normalizedAssignedVehicleIds()
             ->when($this->vehicle_id, fn ($ids) => $ids->push($this->vehicle_id))
             ->filter()
+            ->map(fn ($id) => (int) $id)
             ->unique()
             ->values();
 
@@ -25,6 +27,15 @@ class TripResource extends JsonResource
         if ($vehicleIds->isEmpty() && $this->lead_id && $this->lead?->vehicle_id) {
             $vehicleIds->push($this->lead->vehicle_id);
         }
+
+        $vehicles = $vehicleIds->isEmpty()
+            ? collect()
+            : Vehicle::withoutGlobalScope('tenant')
+                ->where('tenant_id', $this->tenant_id)
+                ->whereIn('id', $vehicleIds)
+                ->get()
+                ->sortBy(fn ($vehicle) => $vehicleIds->search((int) $vehicle->id))
+                ->values();
 
         return [
             'id'           => $this->id,
@@ -40,14 +51,12 @@ class TripResource extends JsonResource
             'vehicle_type_details' => $this->vehicleTypeDetails,
 
             'number_of_vehicles' => $this->number_of_vehicles,
-
-            'vehicles' => VehicleResource::collection(
-                $vehicleIds->isEmpty()
-                    ? collect()
-                    : Vehicle::whereIn('id', $vehicleIds)->get()
-                        ->sortBy(fn ($vehicle) => $vehicleIds->search($vehicle->id))
-                        ->values()
-            ),
+            'vehicle_id' => $this->vehicle_id ?: $vehicleIds->first(),
+            'assigned_vehicle_ids' => $vehicleIds->all(),
+            'vehicle' => $vehicles->isNotEmpty()
+                ? (new VehicleResource($vehicles->first()))->resolve($request)
+                : null,
+            'vehicles' => VehicleResource::collection($vehicles)->resolve($request),
 
             
             'customer' => [
@@ -89,5 +98,21 @@ class TripResource extends JsonResource
             'notes'         => $this->notes,
             'created_at'    => $this->created_at?->format('d-m-Y H:i'),
         ];
+    }
+
+    private function normalizedAssignedVehicleIds(): Collection
+    {
+        $ids = $this->assigned_vehicles;
+
+        // Support normal JSON arrays and legacy/double-encoded JSON values.
+        for ($attempt = 0; $attempt < 2 && is_string($ids); $attempt++) {
+            $decoded = json_decode($ids, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                break;
+            }
+            $ids = $decoded;
+        }
+
+        return collect(is_array($ids) ? $ids : []);
     }
 }

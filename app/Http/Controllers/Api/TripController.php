@@ -15,6 +15,7 @@ use App\Services\TripService;
 use App\Services\Notification\NotificationService;
 use App\Support\FileSanitizer;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Exception;
 
 class TripController extends Controller
@@ -536,7 +537,12 @@ class TripController extends Controller
 
         $data = $request->validate([
             'vehicle_ids' => 'required|array|min:1',
-            'vehicle_ids.*' => 'integer|exists:vehicles,id',
+            'vehicle_ids.*' => [
+                'integer',
+                Rule::exists('vehicles', 'id')
+                    ->where('tenant_id', $trip->tenant_id)
+                    ->whereNull('deleted_at'),
+            ],
         ]);
 
         $ids = array_values(array_unique($data['vehicle_ids']));
@@ -548,7 +554,10 @@ class TripController extends Controller
             $toAssign = array_values(array_diff($ids, $existing));
 
             if (!empty($toAssign)) {
-                Vehicle::whereIn('id', $toAssign)->update(['is_available' => false]);
+                Vehicle::withoutGlobalScope('tenant')
+                    ->where('tenant_id', $trip->tenant_id)
+                    ->whereIn('id', $toAssign)
+                    ->update(['is_available' => false]);
                 $trip->assigned_vehicles = array_values(array_unique(array_merge($existing, $toAssign)));
                 $trip->vehicle_id ??= $trip->assigned_vehicles[0] ?? null;
                 $trip->save();
@@ -601,7 +610,12 @@ class TripController extends Controller
 
         $data = $request->validate([
             'vehicle_ids' => 'required|array|min:1',
-            'vehicle_ids.*' => 'integer|exists:vehicles,id',
+            'vehicle_ids.*' => [
+                'integer',
+                Rule::exists('vehicles', 'id')
+                    ->where('tenant_id', $trip->tenant_id)
+                    ->whereNull('deleted_at'),
+            ],
         ]);
 
         $ids = array_values(array_unique($data['vehicle_ids']));
@@ -615,7 +629,10 @@ class TripController extends Controller
             }
 
             // Mark removed vehicles available
-            Vehicle::whereIn('id', $toRemove)->update(['is_available' => true]);
+            Vehicle::withoutGlobalScope('tenant')
+                ->where('tenant_id', $trip->tenant_id)
+                ->whereIn('id', $toRemove)
+                ->update(['is_available' => true]);
 
             // Update trip assigned list
             $trip->assigned_vehicles = array_values(array_diff($existing, $toRemove));
