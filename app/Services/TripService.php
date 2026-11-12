@@ -12,11 +12,19 @@ class TripService
     public function store(array $data): Trip
     {
         return DB::transaction(function () use ($data) {
-            // Do not persist vehicle_id from the public create API. If caller
-            // included vehicle_id, respect it for locking only but do not store it.
             $vehicleId = $data['vehicle_id'] ?? null;
-            if (array_key_exists('vehicle_id', $data)) {
-                unset($data['vehicle_id']);
+
+            // Keep the legacy primary vehicle and the newer multi-vehicle list
+            // synchronized. This is especially important for lead conversions,
+            // which create a trip with vehicle_id already selected.
+            if ($vehicleId) {
+                $assignedVehicleIds = collect($data['assigned_vehicles'] ?? [])
+                    ->push($vehicleId)
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+                $data['assigned_vehicles'] = $assignedVehicleIds;
             }
 
             $trip = Trip::create($data);
@@ -35,6 +43,14 @@ class TripService
             if (isset($data['vehicle_id']) && $data['vehicle_id'] != $trip->vehicle_id) {
                 Vehicle::find($trip->vehicle_id)?->update(['is_available' => true]);
                 Vehicle::find($data['vehicle_id'])?->update(['is_available' => false]);
+
+                $data['assigned_vehicles'] = collect($trip->assigned_vehicles ?? [])
+                    ->reject(fn ($id) => (int) $id === (int) $trip->vehicle_id)
+                    ->push($data['vehicle_id'])
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
             }
 
             if (array_key_exists('driver_id', $data) && $data['driver_id'] != $trip->driver_id) {
@@ -158,7 +174,13 @@ class TripService
 
     private function releaseResources(Trip $trip): void
     {
-        Vehicle::find($trip->vehicle_id)?->update(['is_available' => true]);
+        $vehicleIds = collect($trip->assigned_vehicles ?? [])
+            ->when($trip->vehicle_id, fn ($ids) => $ids->push($trip->vehicle_id))
+            ->filter()
+            ->unique()
+            ->all();
+
+        Vehicle::whereIn('id', $vehicleIds)->update(['is_available' => true]);
         Staff::find($trip->driver_id)?->update(['is_available' => true]);
         Staff::find($trip->helper_id)?->update(['is_available' => true]);
     }

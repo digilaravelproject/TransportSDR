@@ -12,6 +12,20 @@ class TripResource extends JsonResource
 {
     public function toArray($request): array
     {
+        // Newer trips keep all assigned vehicle IDs in assigned_vehicles, while
+        // older/single-vehicle trips may only have vehicle_id populated.
+        $vehicleIds = collect($this->assigned_vehicles ?? [])
+            ->when($this->vehicle_id, fn ($ids) => $ids->push($this->vehicle_id))
+            ->filter()
+            ->unique()
+            ->values();
+
+        // Trips converted before the assignment fix may have lost vehicle_id,
+        // but their source lead still contains the selected vehicle.
+        if ($vehicleIds->isEmpty() && $this->lead_id && $this->lead?->vehicle_id) {
+            $vehicleIds->push($this->lead->vehicle_id);
+        }
+
         return [
             'id'           => $this->id,
             'trip_number'  => $this->trip_number,
@@ -27,8 +41,13 @@ class TripResource extends JsonResource
 
             'number_of_vehicles' => $this->number_of_vehicles,
 
-            // 'vehicle' => $this->vehicle ? new VehicleResource($this->vehicle) : null,
-            'vehicles' => $this->assigned_vehicles ? VehicleResource::collection(Vehicle::whereIn('id', $this->assigned_vehicles)->get()) : null,
+            'vehicles' => VehicleResource::collection(
+                $vehicleIds->isEmpty()
+                    ? collect()
+                    : Vehicle::whereIn('id', $vehicleIds)->get()
+                        ->sortBy(fn ($vehicle) => $vehicleIds->search($vehicle->id))
+                        ->values()
+            ),
 
             
             'customer' => [

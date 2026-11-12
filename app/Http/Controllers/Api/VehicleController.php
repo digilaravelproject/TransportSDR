@@ -264,7 +264,7 @@ class VehicleController extends Controller
                     ->orWhere('type', 'like', "%{$q}%");
             })->limit(20)->get();
 
-            return response()->json(['success' => true, 'data' => $vehicles->map(fn($v) => ['id' => $v->id, 'registration_number' => $v->registration_number, 'type' => $v->type, 'seating_capacity' => $v->seating_capacity])]);
+            return response()->json(['success' => true, 'data' => VehicleResource::collection($vehicles)]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Search failed', 'error' => $e->getMessage()], 500);
         }
@@ -438,10 +438,18 @@ class VehicleController extends Controller
                 'insurance_expiry'         => 'nullable|date',
                 'permit_number'            => 'nullable|string|max:100',
                 'permit_expiry'            => 'nullable|date',
+                'gps_device_id'            => 'nullable|string|max:100',
+                'gps_status'               => 'nullable|string|max:50',
+                'puc_certificate_number'   => 'nullable|string|max:100',
+                'puc_expiry_date'           => 'nullable|date|required_with:puc_certificate',
+                'fitness_certificate_number' => 'nullable|string|max:100',
+                'fitness_valid_till'        => 'nullable|date|required_with:fitness_certificate',
                 // Multipart file validation
                 'registration_certificate' => 'nullable|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:5120',
                 'insurance_certificate'    => 'nullable|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:5120',
                 'permit_certificate'       => 'nullable|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:5120',
+                'puc_certificate'          => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120',
+                'fitness_certificate'      => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120',
             ], [
                 'registration_number.required' => 'Registration number is required.',
                 'registration_number.unique'   => 'This registration number already exists.',
@@ -449,6 +457,8 @@ class VehicleController extends Controller
                 'seating_capacity.required'    => 'Seating capacity is required.',
                 'seating_capacity.integer'     => 'Seating capacity must be a number.',
                 'registration_certificate.mimes' => 'RC file must be a file of type: jpeg, png, jpg, pdf, doc, docx.',
+                'puc_certificate.mimes' => 'PUC certificate must be a PDF or image (jpeg, png, jpg).',
+                'fitness_certificate.mimes' => 'Fitness certificate must be a PDF or image (jpeg, png, jpg).',
             ]);
 
             // Ensure tenant_id is set from authenticated user (required column)
@@ -511,6 +521,25 @@ class VehicleController extends Controller
                 ]);
             }
 
+            $this->syncVehicleCertificate(
+                $request,
+                $vehicle,
+                'puc_certificate',
+                'puc_file',
+                'puc_certificate_number',
+                'puc_expiry_date',
+                'pollution'
+            );
+            $this->syncVehicleCertificate(
+                $request,
+                $vehicle,
+                'fitness_certificate',
+                'fitness_file',
+                'fitness_certificate_number',
+                'fitness_valid_till',
+                'fitness'
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Vehicle added successfully.',
@@ -558,16 +587,26 @@ class VehicleController extends Controller
                 'insurance_expiry'         => 'nullable|date',
                 'permit_number'            => 'nullable|string|max:100',
                 'permit_expiry'            => 'nullable|date',
+                'gps_device_id'            => 'nullable|string|max:100',
+                'gps_status'               => 'nullable|string|max:50',
+                'puc_certificate_number'   => 'nullable|string|max:100',
+                'puc_expiry_date'           => 'nullable|date|required_with:puc_certificate',
+                'fitness_certificate_number' => 'nullable|string|max:100',
+                'fitness_valid_till'        => 'nullable|date|required_with:fitness_certificate',
                 // Multipart file validation
                 'registration_certificate' => 'nullable|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:5120',
                 'insurance_certificate'    => 'nullable|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:5120',
                 'permit_certificate'       => 'nullable|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:5120',
+                'puc_certificate'          => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120',
+                'fitness_certificate'      => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120',
                 'is_available'             => 'boolean',
                 'is_active'                => 'boolean',
             ], [
                 'registration_certificate.mimes' => 'RC file must be a file of type: jpeg, png, jpg, pdf, doc, docx.',
                 'insurance_certificate.mimes'    => 'Insurance file must be a file of type: jpeg, png, jpg, pdf, doc, docx.',
                 'permit_certificate.mimes'       => 'Permit file must be a file of type: jpeg, png, jpg, pdf, doc, docx.',
+                'puc_certificate.mimes'          => 'PUC certificate must be a PDF or image (jpeg, png, jpg).',
+                'fitness_certificate.mimes'      => 'Fitness certificate must be a PDF or image (jpeg, png, jpg).',
             ]);
 
             $vehicle->update($data);
@@ -622,6 +661,25 @@ class VehicleController extends Controller
                     'expiry_date'   => $request->input('permit_expiry'),
                 ]);
             }
+
+            $this->syncVehicleCertificate(
+                $request,
+                $vehicle,
+                'puc_certificate',
+                'puc_file',
+                'puc_certificate_number',
+                'puc_expiry_date',
+                'pollution'
+            );
+            $this->syncVehicleCertificate(
+                $request,
+                $vehicle,
+                'fitness_certificate',
+                'fitness_file',
+                'fitness_certificate_number',
+                'fitness_valid_till',
+                'fitness'
+            );
 
             return response()->json([
                 'success' => true,
@@ -1246,14 +1304,7 @@ class VehicleController extends Controller
             return response()->json([
                 'success' => true,
                 'data'    => [
-                    'vehicle'     => [
-                        'id'                  => $vehicle->id,
-                        'registration_number' => $vehicle->registration_number,
-                        'type'                => $vehicle->type,
-                        'make'                => $vehicle->make,
-                        'model'               => $vehicle->model,
-                        'current_km'          => $vehicle->current_km,
-                    ],
+                    'vehicle'     => new VehicleResource($vehicle),
                     'period'      => ['from' => $from, 'to' => $to],
                     'fuel'        => [
                         'total_fills'    => $fuelSummary->total_fills ?? 0,
@@ -1384,7 +1435,9 @@ class VehicleController extends Controller
                 'data'    => [
                     'vehicle_id'          => $vehicle->id,
                     'registration_number' => $vehicle->registration_number,
-                    'gps_status'          => 'api_not_connected',
+                    'gps_device_id'       => $vehicle->gps_device_id,
+                    'gps_status'          => $vehicle->gps_status,
+                    'integration_status'  => 'api_not_connected',
                     'note'                => 'Integrate GPS provider like Vamosys, TrackSo, Uffizio.',
                 ],
             ]);
@@ -1473,6 +1526,53 @@ class VehicleController extends Controller
                 'message' => 'Failed to fetch expiring documents. Please try again.',
                 'error'   => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    private function syncVehicleCertificate(
+        Request $request,
+        Vehicle $vehicle,
+        string $uploadField,
+        string $pathColumn,
+        string $numberColumn,
+        string $expiryColumn,
+        string $documentType
+    ): void {
+        $hasCertificateData = $request->hasFile($uploadField)
+            || $request->exists($numberColumn)
+            || $request->exists($expiryColumn);
+
+        if (!$hasCertificateData) {
+            return;
+        }
+
+        if ($request->hasFile($uploadField)) {
+            $file = $request->file($uploadField);
+            $directory = "tenants/{$vehicle->tenant_id}/vehicles/{$vehicle->id}";
+            $fileName = FileSanitizer::sanitize(
+                $documentType . '-' . time() . '.' . $file->extension()
+            );
+            $path = $file->storeAs($directory, $fileName, 'public');
+            $vehicle->update([$pathColumn => $path]);
+        }
+
+        $vehicle->refresh();
+
+        // vehicle_documents.expiry_date is required, so create/sync the related
+        // document as soon as an expiry date is available.
+        if ($vehicle->{$expiryColumn}) {
+            VehicleDocument::updateOrCreate(
+                [
+                    'vehicle_id' => $vehicle->id,
+                    'document_type' => $documentType,
+                ],
+                [
+                    'tenant_id' => $vehicle->tenant_id,
+                    'document_number' => $vehicle->{$numberColumn},
+                    'document_path' => $vehicle->{$pathColumn},
+                    'expiry_date' => $vehicle->{$expiryColumn},
+                ]
+            );
         }
     }
 

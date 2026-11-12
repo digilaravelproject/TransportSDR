@@ -26,6 +26,14 @@ class Vehicle extends Model
         'permit_number',
         'permit_expiry',
         'permit_file',
+        'gps_device_id',
+        'gps_status',
+        'puc_certificate_number',
+        'puc_expiry_date',
+        'puc_file',
+        'fitness_certificate_number',
+        'fitness_valid_till',
+        'fitness_file',
         'is_available',
         'is_active',
     ];
@@ -37,6 +45,8 @@ class Vehicle extends Model
         'rc_expiry' => 'date',
         'insurance_expiry' => 'date',
         'permit_expiry' => 'date',
+        'puc_expiry_date' => 'date',
+        'fitness_valid_till' => 'date',
     ];
     public function trips()
     {

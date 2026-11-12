@@ -136,6 +136,7 @@ Route::middleware(['auth:sanctum', 'tenant'])
         Route::get('vehicles/list', [Api\VehicleController::class, 'list']);
         Route::get('vehicles/search', [Api\VehicleController::class, 'search']);
         Route::get('vehicles/filters', [Api\VehicleController::class, 'filter']);
+        Route::get('vehicles/documents/expiring', [Api\VehicleController::class, 'expiringDocuments']);
         Route::apiResource('vehicles', Api\VehicleController::class);
         // Vehicle Types
         Route::get('vehicle-types/list', [Api\VehicleTypeController::class, 'list']);
@@ -143,7 +144,6 @@ Route::middleware(['auth:sanctum', 'tenant'])
         Route::apiResource('vehicle-types', Api\VehicleTypeController::class);
         Route::get('routes/{route_id}/available-vehicles', [Api\VehicleController::class, 'availableVehicles']);
         Route::prefix('vehicles')->group(function () {
-            Route::get('documents/expiring',         [Api\VehicleController::class, 'expiringDocuments']);
             Route::prefix('{vehicle}')->group(function () {
                 // New unified activity endpoints
                 Route::post('activity/fuel',    [Api\VehicleActivityController::class, 'storeFuel']);

@@ -200,7 +200,7 @@ class TripController extends Controller
                 ->count();
 
             // Main listing query
-            $query = Trip::with(['vehicle', 'customer', 'driver', 'vehicleTypeDetails'])
+            $query = Trip::with(['vehicle', 'customer', 'driver', 'vehicleTypeDetails', 'lead'])
                 ->when($request->status, fn($q, $v) =>
                     $q->where('status', $v)
                 )
@@ -309,7 +309,7 @@ class TripController extends Controller
         }
 
         try {
-            $trip->load(['vehicle', 'customer', 'driver', 'helper', 'payments']);
+            $trip->load(['vehicle', 'customer', 'driver', 'helper', 'payments', 'lead']);
 
             return response()->json([
                 'success' => true,
@@ -550,6 +550,7 @@ class TripController extends Controller
             if (!empty($toAssign)) {
                 Vehicle::whereIn('id', $toAssign)->update(['is_available' => false]);
                 $trip->assigned_vehicles = array_values(array_unique(array_merge($existing, $toAssign)));
+                $trip->vehicle_id ??= $trip->assigned_vehicles[0] ?? null;
                 $trip->save();
             }
 
@@ -618,6 +619,9 @@ class TripController extends Controller
 
             // Update trip assigned list
             $trip->assigned_vehicles = array_values(array_diff($existing, $toRemove));
+            if (in_array($trip->vehicle_id, $toRemove)) {
+                $trip->vehicle_id = $trip->assigned_vehicles[0] ?? null;
+            }
             $trip->save();
 
             try { $this->notificationService->create('Vehicles Removed', "Vehicles removed from {$trip->trip_number}", ['trip_id' => $trip->id], 'assign', 'medium'); } catch (\Throwable $e) {}

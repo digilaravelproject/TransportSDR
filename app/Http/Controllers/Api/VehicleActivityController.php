@@ -563,10 +563,10 @@ class VehicleActivityController extends Controller
         $this->checkRole(['superadmin', 'admin', 'operator', 'accountant']);
 
         $v = Validator::make($request->all(), [
-            'document_type' => 'required|string|max:100',
+            'document_type' => 'required|in:rc,insurance,pollution,permit,fitness,tax,other',
             'document_number' => 'nullable|string|max:255',
             'issue_date' => 'nullable|date',
-            'expiry_date' => 'nullable|date',
+            'expiry_date' => 'required|date',
             'alert_before_days' => 'nullable|integer|min:0',
             'file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'notes' => 'nullable|string',
@@ -590,6 +590,22 @@ class VehicleActivityController extends Controller
             'notes' => $data['notes'] ?? null,
             'created_by' => Auth::id(),
         ]);
+
+        // Keep the first-class vehicle certificate fields synchronized when
+        // callers use the generic document API.
+        if ($data['document_type'] === 'pollution') {
+            $vehicle->update([
+                'puc_certificate_number' => $data['document_number'] ?? null,
+                'puc_expiry_date' => $data['expiry_date'],
+                'puc_file' => $path,
+            ]);
+        } elseif ($data['document_type'] === 'fitness') {
+            $vehicle->update([
+                'fitness_certificate_number' => $data['document_number'] ?? null,
+                'fitness_valid_till' => $data['expiry_date'],
+                'fitness_file' => $path,
+            ]);
+        }
 
         return response()->json(['success' => true, 'message' => 'Document uploaded', 'data' => $doc], 201);
     }
@@ -726,16 +742,17 @@ class VehicleActivityController extends Controller
         $docs = collect();
 
         $documentMap = [
-            'rc' => 'RC',
-            'insurance' => 'Insurance',
-            'permit' => 'Permit',
+            ['label' => 'RC', 'number' => 'rc_number', 'expiry' => 'rc_expiry', 'file' => 'rc_file'],
+            ['label' => 'Insurance', 'number' => 'insurance_number', 'expiry' => 'insurance_expiry', 'file' => 'insurance_file'],
+            ['label' => 'Permit', 'number' => 'permit_number', 'expiry' => 'permit_expiry', 'file' => 'permit_file'],
+            ['label' => 'PUC', 'number' => 'puc_certificate_number', 'expiry' => 'puc_expiry_date', 'file' => 'puc_file'],
+            ['label' => 'Fitness', 'number' => 'fitness_certificate_number', 'expiry' => 'fitness_valid_till', 'file' => 'fitness_file'],
         ];
 
-        foreach ($documentMap as $prefix => $label) {
-
-            $number = $vehicle->{$prefix . '_number'};
-            $expiry = $vehicle->{$prefix . '_expiry'};
-            $file   = $vehicle->{$prefix . '_file'};
+        foreach ($documentMap as $document) {
+            $number = $vehicle->{$document['number']};
+            $expiry = $vehicle->{$document['expiry']};
+            $file   = $vehicle->{$document['file']};
 
             // Document file path me base URL add karne ka logic
             $receiptUrl = $file;
@@ -747,7 +764,7 @@ class VehicleActivityController extends Controller
                 $docs->push([
                     'id' => $vehicle->id,
                     'activity_type' => 'document',
-                    'title' => $label,
+                    'title' => $document['label'],
                     'activity_date' => $expiry,
                     'amount' => null,
                     'quantity' => null,
